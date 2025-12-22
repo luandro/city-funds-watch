@@ -24,6 +24,7 @@ interface CivicFeedProps {
   items: FeedItem[];
   neighborhood: string | null;
   isLoading?: boolean;
+  isFiltering?: boolean; // True when filtering is in progress (prevents flash of empty state)
   className?: string;
 }
 
@@ -155,6 +156,7 @@ export function CivicFeed({
   items,
   neighborhood,
   isLoading = false,
+  isFiltering = false,
   className,
 }: CivicFeedProps) {
   const { happeningNow, delayedOrAtRisk, changedThisWeek } = useMemo(() => {
@@ -190,7 +192,8 @@ export function CivicFeed({
     return { happeningNow, delayedOrAtRisk, changedThisWeek };
   }, [items]);
 
-  if (isLoading) {
+  // Show loading skeleton when loading or when filtering with no items yet
+  if (isLoading || (isFiltering && items.length === 0)) {
     return (
       <section className={cn("space-y-4", className)}>
         <h2 className="text-xl md:text-2xl font-bold">Seu Feed Cívico</h2>

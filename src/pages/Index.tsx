@@ -1,19 +1,41 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
 import { ParticipationNow } from "@/components/ParticipationNow";
 import { MakeItYours } from "@/components/MakeItYours";
 import { CivicFeed } from "@/components/CivicFeed";
 import { MoneyBriefly } from "@/components/MoneyBriefly";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { dataService } from "@/data/dataService";
-import { LandingPageState, FeedItem } from "@/data/types";
+import { LandingPageState, FeedItem, Question } from "@/data/types";
 import { TopicMoneySummary } from "@/data/mockData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { formatDate } from "@/utils/formatters";
 
+// Helper function to filter feed items locally
+function filterFeedItems(
+  items: FeedItem[],
+  neighborhood: string | null,
+  followedTopics: string[]
+): FeedItem[] {
+  return items.filter((item) => {
+    const matchesNeighborhood =
+      !neighborhood || // "Whole city" shows all
+      !item.neighborhood || // City-wide items always show
+      item.neighborhood === neighborhood;
+
+    const matchesTopic =
+      followedTopics.length === 0 || // No topics selected shows all
+      !item.topic || // Items without topic always show
+      followedTopics.includes(item.topic);
+
+    return matchesNeighborhood && matchesTopic;
+  });
+}
+
 const Index = () => {
   const [pageState, setPageState] = useState<LandingPageState | null>(null);
-  const [filteredFeed, setFilteredFeed] = useState<FeedItem[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [moneySummaries, setMoneySummaries] = useState<TopicMoneySummary[]>([]);
   const [localSpendHeadline, setLocalSpendHeadline] = useState<{
     localSharePct: number;
@@ -50,6 +72,7 @@ const Index = () => {
         ]);
 
         setPageState(state);
+        setQuestions(state.questions || []);
         setNeighborhoods(neighborhoodList);
         setTopics(topicList);
         setSuggestedTopics(suggested);
@@ -68,20 +91,13 @@ const Index = () => {
     loadData();
   }, []);
 
-  // Filter feed items when preferences change
-  useEffect(() => {
-    if (!preferencesLoaded || !pageState?.feedItems) return;
-
-    async function filterFeed() {
-      const filtered = await dataService.getFilteredFeedItems(
-        neighborhood,
-        followedTopics
-      );
-      setFilteredFeed(filtered);
+  // Filter feed items locally using useMemo (no re-fetching)
+  const filteredFeed = useMemo(() => {
+    if (!pageState?.feedItems || !preferencesLoaded) {
+      return [];
     }
-
-    filterFeed();
-  }, [neighborhood, followedTopics, preferencesLoaded, pageState?.feedItems]);
+    return filterFeedItems(pageState.feedItems, neighborhood, followedTopics);
+  }, [pageState?.feedItems, neighborhood, followedTopics, preferencesLoaded]);
 
   // Load money summaries when followed topics change
   useEffect(() => {
@@ -101,6 +117,7 @@ const Index = () => {
     try {
       const state = await dataService.getLandingPageState();
       setPageState(state);
+      setQuestions(state.questions || []);
     } catch (error) {
       setPageState({
         mode: "error",
@@ -112,15 +129,31 @@ const Index = () => {
   }, []);
 
   const handleVote = useCallback(async (questionId: string, direction: "up" | "down") => {
+    // Optimistically update the vote count
+    setQuestions((prev) =>
+      prev.map((q) => {
+        if (q.id !== questionId) return q;
+        // This is handled in QuestionsPanel UI for immediate feedback
+        return q;
+      })
+    );
     await dataService.voteQuestion(questionId, direction);
   }, []);
 
   const handleSubmitQuestion = useCallback(async (title: string) => {
-    if (!pageState?.hearing) return;
-    await dataService.submitQuestion({
-      hearingId: pageState.hearing.id,
-      title,
-    });
+    if (!pageState?.hearing || !title.trim()) return;
+
+    try {
+      const newQuestion = await dataService.submitQuestion({
+        hearingId: pageState.hearing.id,
+        title: title.trim(),
+      });
+
+      // Add the new question to the list (optimistic update)
+      setQuestions((prev) => [newQuestion, ...prev]);
+    } catch (error) {
+      console.error("Failed to submit question:", error);
+    }
   }, [pageState?.hearing]);
 
   const scrollToMakeItYours = useCallback(() => {
@@ -132,6 +165,9 @@ const Index = () => {
     pageState?.liveSession?.updatedAtISO ||
     new Date().toISOString();
 
+  // Check if we're still waiting for preferences to load (prevents flash of empty state)
+  const isFeedReady = preferencesLoaded && pageState?.feedItems;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -141,48 +177,57 @@ const Index = () => {
         <PrototypeBanner />
 
         {/* SECTION 1: Participation Now - Always above the fold */}
-        <ParticipationNow
-          mode={pageState?.mode || "error"}
-          hearing={pageState?.hearing}
-          liveSession={pageState?.liveSession}
-          questions={pageState?.questions}
-          lastCachedHearing={pageState?.lastCachedHearing}
-          errorMessage={pageState?.errorMessage}
-          isLoading={loading}
-          onVote={handleVote}
-          onSubmitQuestion={handleSubmitQuestion}
-          onRetry={handleRetry}
-          onFollowTopics={scrollToMakeItYours}
-        />
+        <ErrorBoundary sectionName="Participação">
+          <ParticipationNow
+            mode={pageState?.mode || "error"}
+            hearing={pageState?.hearing}
+            liveSession={pageState?.liveSession}
+            questions={questions}
+            lastCachedHearing={pageState?.lastCachedHearing}
+            errorMessage={pageState?.errorMessage}
+            isLoading={loading}
+            onVote={handleVote}
+            onSubmitQuestion={handleSubmitQuestion}
+            onRetry={handleRetry}
+            onFollowTopics={scrollToMakeItYours}
+          />
+        </ErrorBoundary>
 
         {/* SECTION 2: Make it Yours - Personalization */}
-        <div ref={makeItYoursRef}>
-          <MakeItYours
-            neighborhoods={neighborhoods}
-            topics={topics}
-            suggestedTopics={suggestedTopics}
-            selectedNeighborhood={neighborhood}
-            followedTopics={followedTopics}
-            onNeighborhoodChange={setNeighborhood}
-            onTopicToggle={toggleTopic}
-            onReset={resetPreferences}
-          />
-        </div>
+        <ErrorBoundary sectionName="Personalização">
+          <div ref={makeItYoursRef}>
+            <MakeItYours
+              neighborhoods={neighborhoods}
+              topics={topics}
+              suggestedTopics={suggestedTopics}
+              selectedNeighborhood={neighborhood}
+              followedTopics={followedTopics}
+              onNeighborhoodChange={setNeighborhood}
+              onTopicToggle={toggleTopic}
+              onReset={resetPreferences}
+            />
+          </div>
+        </ErrorBoundary>
 
         {/* SECTION 3: Your Civic Feed */}
-        <CivicFeed
-          items={filteredFeed}
-          neighborhood={neighborhood}
-          isLoading={loading}
-        />
+        <ErrorBoundary sectionName="Feed Cívico">
+          <CivicFeed
+            items={filteredFeed}
+            neighborhood={neighborhood}
+            isLoading={loading}
+            isFiltering={!isFeedReady}
+          />
+        </ErrorBoundary>
 
         {/* SECTION 4: Money, Briefly */}
-        <MoneyBriefly
-          summaries={moneySummaries}
-          localSpendHeadline={localSpendHeadline || undefined}
-          followedTopics={followedTopics}
-          isLoading={loading}
-        />
+        <ErrorBoundary sectionName="Dinheiro">
+          <MoneyBriefly
+            summaries={moneySummaries}
+            localSpendHeadline={localSpendHeadline || undefined}
+            followedTopics={followedTopics}
+            isLoading={loading}
+          />
+        </ErrorBoundary>
 
         {/* Timestamp */}
         <footer className="text-center text-xs text-muted-foreground pb-4">

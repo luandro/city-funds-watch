@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,13 +57,41 @@ export function Countdown({ targetDate, className }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
     calculateTimeLeft(targetDate)
   );
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft(targetDate));
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    // Calculate initial time
+    const initial = calculateTimeLeft(targetDate);
+    setTimeLeft(initial);
+
+    // Don't start interval if already past
+    if (initial.isPast) {
+      return;
+    }
+
+    // Start interval
+    intervalRef.current = setInterval(() => {
+      const newTimeLeft = calculateTimeLeft(targetDate);
+      setTimeLeft(newTimeLeft);
+
+      // Stop the interval when countdown reaches zero
+      if (newTimeLeft.isPast && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [targetDate]);
 
   const countdownText = formatCountdown(timeLeft);

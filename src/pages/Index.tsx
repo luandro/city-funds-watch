@@ -1,160 +1,192 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
-import { StatCard } from "@/components/StatCard";
-import { FiscalStatus } from "@/components/FiscalStatus";
-import { TrendChart } from "@/components/TrendChart";
-import { ListenButton } from "@/components/ListenButton";
+import { ParticipationNow } from "@/components/ParticipationNow";
+import { MakeItYours } from "@/components/MakeItYours";
+import { CivicFeed } from "@/components/CivicFeed";
+import { MoneyBriefly } from "@/components/MoneyBriefly";
 import { dataService } from "@/data/dataService";
-import { HomeSummary } from "@/data/types";
-import { getMonthName } from "@/data/mockData";
-import { formatMoney, formatDate } from "@/utils/formatters";
-import { Wallet, Receipt, Scale, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { LandingPageState, FeedItem } from "@/data/types";
+import { TopicMoneySummary } from "@/data/mockData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { formatDate } from "@/utils/formatters";
 
 const Index = () => {
-  const [data, setData] = useState<HomeSummary | null>(null);
+  const [pageState, setPageState] = useState<LandingPageState | null>(null);
+  const [filteredFeed, setFilteredFeed] = useState<FeedItem[]>([]);
+  const [moneySummaries, setMoneySummaries] = useState<TopicMoneySummary[]>([]);
+  const [localSpendHeadline, setLocalSpendHeadline] = useState<{
+    localSharePct: number;
+    message: string;
+    detailsUrl: string;
+  } | null>(null);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const {
+    neighborhood,
+    followedTopics,
+    setNeighborhood,
+    toggleTopic,
+    resetPreferences,
+    isLoaded: preferencesLoaded,
+  } = useUserPreferences();
+
+  // Ref to scroll to MakeItYours section
+  const makeItYoursRef = useRef<HTMLDivElement>(null);
+
+  // Load initial data
   useEffect(() => {
-    dataService.getHomeSummary().then((summary) => {
-      setData(summary);
-      setLoading(false);
-    });
+    async function loadData() {
+      try {
+        const [state, neighborhoodList, topicList, suggested, headline] = await Promise.all([
+          dataService.getLandingPageState(),
+          dataService.getNeighborhoods(),
+          dataService.getTopics(),
+          dataService.getSuggestedTopics(),
+          dataService.getLocalSpendHeadline(),
+        ]);
+
+        setPageState(state);
+        setNeighborhoods(neighborhoodList);
+        setTopics(topicList);
+        setSuggestedTopics(suggested);
+        setLocalSpendHeadline(headline);
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to load landing page data:", error);
+        setPageState({
+          mode: "error",
+          errorMessage: "Erro ao carregar dados",
+        });
+        setLoading(false);
+      }
+    }
+
+    loadData();
   }, []);
 
-  if (loading || !data) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-pulse text-muted-foreground">
-              Carregando...
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  // Filter feed items when preferences change
+  useEffect(() => {
+    if (!preferencesLoaded || !pageState?.feedItems) return;
 
-  const { currentMonth, yearToDate, status, history, updatedAtISO } = data;
-  const monthName = getMonthName(currentMonth.month);
-  const balance = currentMonth.revenue - currentMonth.expensePaid;
-  const isPositive = balance >= 0;
+    async function filterFeed() {
+      const filtered = await dataService.getFilteredFeedItems(
+        neighborhood,
+        followedTopics
+      );
+      setFilteredFeed(filtered);
+    }
 
-  const summaryText = `Em ${monthName}, a receita foi de ${formatMoney(currentMonth.revenue, true)}, as despesas foram ${formatMoney(currentMonth.expensePaid, true)}, e o saldo foi de ${formatMoney(Math.abs(balance), true)} ${isPositive ? 'positivo' : 'negativo'}. Status: ${status === 'green' ? 'saudável' : status === 'yellow' ? 'atenção' : status === 'red' ? 'crítico' : 'indisponível'}.`;
+    filterFeed();
+  }, [neighborhood, followedTopics, preferencesLoaded, pageState?.feedItems]);
+
+  // Load money summaries when followed topics change
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+
+    async function loadMoneySummaries() {
+      const summaries = await dataService.getTopicMoneySummaries(followedTopics);
+      setMoneySummaries(summaries);
+    }
+
+    loadMoneySummaries();
+  }, [followedTopics, preferencesLoaded]);
+
+  // Handlers
+  const handleRetry = useCallback(async () => {
+    setLoading(true);
+    try {
+      const state = await dataService.getLandingPageState();
+      setPageState(state);
+    } catch (error) {
+      setPageState({
+        mode: "error",
+        errorMessage: "Erro ao carregar dados",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleVote = useCallback(async (questionId: string, direction: "up" | "down") => {
+    await dataService.voteQuestion(questionId, direction);
+  }, []);
+
+  const handleSubmitQuestion = useCallback(async (title: string) => {
+    if (!pageState?.hearing) return;
+    await dataService.submitQuestion({
+      hearingId: pageState.hearing.id,
+      title,
+    });
+  }, [pageState?.hearing]);
+
+  const scrollToMakeItYours = useCallback(() => {
+    makeItYoursRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // Determine the latest update timestamp
+  const latestUpdate = pageState?.hearing?.updatedAtISO ||
+    pageState?.liveSession?.updatedAtISO ||
+    new Date().toISOString();
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="container mx-auto px-4 py-6 md:py-10 space-y-8">
-        {/* Hero Section */}
-        <section className="text-center space-y-4 opacity-0 animate-fade-in" style={{ animationFillMode: 'forwards' }}>
-          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground">
-            BH Hoje
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Entenda as finanças da cidade em 10 segundos
-          </p>
-        </section>
 
+      <main className="container mx-auto px-4 py-4 md:py-6 space-y-8 md:space-y-10">
         {/* Prototype Banner */}
         <PrototypeBanner />
 
-        {/* Main Stats Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <StatCard
-            icon={Wallet}
-            iconColor="text-money-revenue"
-            label="Receita do Mês"
-            value={formatMoney(currentMonth.revenue, true)}
-            subtitle={monthName}
-            delay={100}
-          />
-          
-          <StatCard
-            icon={Receipt}
-            iconColor="text-money-expense"
-            label="Despesas Pagas"
-            value={formatMoney(currentMonth.expensePaid, true)}
-            subtitle={monthName}
-            delay={200}
-          />
-          
-          <StatCard
-            icon={Scale}
-            iconColor={isPositive ? "text-money-balance-positive" : "text-money-balance-negative"}
-            label="Saldo do Mês"
-            value={`${isPositive ? '+' : '-'}${formatMoney(Math.abs(balance), true)}`}
-            subtitle={isPositive ? "Superávit" : "Déficit"}
-            delay={300}
-          />
-        </section>
+        {/* SECTION 1: Participation Now - Always above the fold */}
+        <ParticipationNow
+          mode={pageState?.mode || "error"}
+          hearing={pageState?.hearing}
+          liveSession={pageState?.liveSession}
+          questions={pageState?.questions}
+          lastCachedHearing={pageState?.lastCachedHearing}
+          errorMessage={pageState?.errorMessage}
+          isLoading={loading}
+          onVote={handleVote}
+          onSubmitQuestion={handleSubmitQuestion}
+          onRetry={handleRetry}
+          onFollowTopics={scrollToMakeItYours}
+        />
 
-        {/* Status and Chart */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-4">
-            <FiscalStatus status={status} delay={400} />
-            
-            {/* Year to Date Summary */}
-            <div 
-              className="card-civic opacity-0 animate-slide-up"
-              style={{ animationDelay: '500ms', animationFillMode: 'forwards' }}
-            >
-              <h3 className="stat-label mb-4">Acumulado do Ano</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Receita</p>
-                  <p className="font-display font-bold text-lg text-foreground">
-                    {formatMoney(yearToDate.revenue, true)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Despesas</p>
-                  <p className="font-display font-bold text-lg text-foreground">
-                    {formatMoney(yearToDate.expensePaid, true)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Saldo</p>
-                  <p className={`font-display font-bold text-lg ${yearToDate.balance >= 0 ? 'text-money-balance-positive' : 'text-money-balance-negative'}`}>
-                    {formatMoney(yearToDate.balance, true)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* SECTION 2: Make it Yours - Personalization */}
+        <div ref={makeItYoursRef}>
+          <MakeItYours
+            neighborhoods={neighborhoods}
+            topics={topics}
+            suggestedTopics={suggestedTopics}
+            selectedNeighborhood={neighborhood}
+            followedTopics={followedTopics}
+            onNeighborhoodChange={setNeighborhood}
+            onTopicToggle={toggleTopic}
+            onReset={resetPreferences}
+          />
+        </div>
 
-          <TrendChart data={history} delay={450} />
-        </section>
+        {/* SECTION 3: Your Civic Feed */}
+        <CivicFeed
+          items={filteredFeed}
+          neighborhood={neighborhood}
+          isLoading={loading}
+        />
 
-        {/* Listen Button and CTA */}
-        <section 
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-slide-up"
-          style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}
-        >
-          <ListenButton text={summaryText} />
-          
-          <Link to="/local-spend">
-            <Button 
-              size="lg" 
-              className="gap-2 rounded-xl bg-primary hover:bg-primary-glow transition-all"
-            >
-              Ver Gastos Locais
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </section>
+        {/* SECTION 4: Money, Briefly */}
+        <MoneyBriefly
+          summaries={moneySummaries}
+          localSpendHeadline={localSpendHeadline || undefined}
+          followedTopics={followedTopics}
+          isLoading={loading}
+        />
 
         {/* Timestamp */}
-        <footer 
-          className="text-center text-sm text-muted-foreground opacity-0 animate-fade-in"
-          style={{ animationDelay: '700ms', animationFillMode: 'forwards' }}
-        >
-          <p>Última atualização: {formatDate(updatedAtISO)}</p>
+        <footer className="text-center text-xs text-muted-foreground pb-4">
+          <p>Última atualização: {formatDate(latestUpdate)}</p>
         </footer>
       </main>
     </div>

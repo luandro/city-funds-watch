@@ -3,6 +3,7 @@
  *
  * A tolerant parser that converts BH-dados-publicos.json into a normalized
  * internal model. Handles variations in structure and missing fields gracefully.
+ * Implements security-first input validation to prevent unsafe data processing.
  */
 
 import {
@@ -18,6 +19,232 @@ import {
 } from "./sourceRegistryTypes";
 import { TRANSPARENCY_PORTAL_URL, DOM_URL } from "@/constants/urls";
 
+// ============================================================
+// SECURITY: Input Validation Schema
+// ============================================================
+
+/**
+ * Validation error with safe details (no raw data exposure)
+ */
+export class ValidationError extends Error {
+  constructor(message: string, public readonly field?: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
+/**
+ * Safe URL validation to prevent XSS and injection attacks
+ */
+function isValidUrl(url: unknown): url is string {
+  if (typeof url !== "string") {
+    return false;
+  }
+
+  // Block javascript: and data: URLs
+  const trimmed = url.trim();
+  if (trimmed.toLowerCase().startsWith("javascript:") ||
+      trimmed.toLowerCase().startsWith("data:") ||
+      trimmed.toLowerCase().startsWith("vbscript:")) {
+    return false;
+  }
+
+  // Basic URL format validation
+  try {
+    const parsed = new URL(trimmed);
+    // Only allow http/https protocols
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate and sanitize string input to prevent injection
+ * SECURITY: Blocks dangerous patterns while allowing legitimate content
+ */
+function isValidString(value: unknown, maxLength = 10000): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  // Check length to prevent DoS
+  if (value.length > maxLength) {
+    return false;
+  }
+
+  // Check for obviously dangerous patterns (XSS, injection attempts)
+  // This is more permissive than a whitelist, allowing legitimate content
+  const dangerousPatterns = [
+    /<script/i,           // Script tags
+    /javascript:/i,       // JavaScript protocol
+    /vbscript:/i,         // VBScript protocol
+    /onerror\s*=/i,       // Inline error handlers
+    /onload\s*=/i,        // Inline load handlers
+    /onclick\s*=/i,       // Inline click handlers
+    /<iframe/i,           // Iframe tags
+    /<object/i,           // Object tags
+    /<embed/i,            // Embed tags
+  ];
+
+  return !dangerousPatterns.some(pattern => pattern.test(value));
+}
+
+/**
+ * Validate array input
+ */
+function isValidArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+/**
+ * Validate array with element validator
+ * SECURITY: Validates both array type and element safety
+ */
+function isValidArrayOf<T>(
+  value: unknown,
+  itemValidator: (item: unknown) => item is T
+): value is T[] {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  // Validate all elements (limit check for performance on large arrays)
+  const maxItemsToCheck = 1000;
+  const itemsToCheck = Math.min(value.length, maxItemsToCheck);
+
+  for (let i = 0; i < itemsToCheck; i++) {
+    if (!itemValidator(value[i])) {
+      return false;
+    }
+  }
+
+  // For large arrays, just validate the rest are safe types
+  if (value.length > maxItemsToCheck) {
+    for (let i = maxItemsToCheck; i < value.length; i++) {
+      const item = value[i];
+      // Only allow primitives and plain objects for large arrays
+      if (item !== null &&
+          typeof item !== "string" &&
+          typeof item !== "number" &&
+          typeof item !== "boolean" &&
+          typeof item !== "object") {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validate object input (non-null, non-array)
+ * SECURITY: Protects against prototype pollution
+ */
+function isValidObject(value: unknown, maxDepth = 10): value is Record<string, unknown> {
+  // Basic type check
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  // SECURITY: Check for prototype pollution attempts
+  const keys = Object.keys(value);
+  const dangerousKeys = ["__proto__", "constructor", "prototype"];
+
+  for (const key of keys) {
+    if (dangerousKeys.includes(key)) {
+      return false;
+    }
+  }
+
+  // Check object depth to prevent stack overflow
+  if (maxDepth <= 0) {
+    return false;
+  }
+
+  // Recursively check nested objects (with depth limit)
+  for (const key of keys) {
+    const val = (value as Record<string, unknown>)[key];
+    if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+      if (!isValidObject(val, maxDepth - 1)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validate link kind against allowed values
+ */
+function isValidLinkKind(value: unknown): value is LinkKind {
+  const validKinds: LinkKind[] = [
+    "schedule", "legislation", "dom", "transparency", "council", "op",
+    "lai", "ombudsman", "structure", "planning", "amendments", "accountability",
+    "external_control", "sector_plan", "legislative", "other"
+  ];
+  return typeof value === "string" && validKinds.includes(value as LinkKind);
+}
+
+/**
+ * Validate top-level registry structure
+ */
+function validateRawRegistry(raw: unknown): RawRegistry {
+  if (!isValidObject(raw)) {
+    throw new ValidationError("Input must be a valid JSON object");
+  }
+
+  // Validate metadata if present
+  if (raw.metadata !== undefined && !isValidObject(raw.metadata)) {
+    throw new ValidationError("metadata must be an object", "metadata");
+  }
+
+  // Validate portais_de_acesso if present
+  if (raw.portais_de_acesso !== undefined) {
+    if (!isValidObject(raw.portais_de_acesso)) {
+      throw new ValidationError("portais_de_acesso must be an object", "portais_de_acesso");
+    }
+  }
+
+  // Validate lacunas if present
+  if (raw.lacunas !== undefined && !isValidArray(raw.lacunas)) {
+    throw new ValidationError("lacunas must be an array", "lacunas");
+  }
+
+  // Validate sections (they can be missing, but must be objects if present)
+  const sectionKeys = [
+    "secao_a_estrutura_administrativa",
+    "secao_b_legislacao_estruturante",
+    "secao_c_ciclo_orcamentario",
+    "secao_d_emendas_orcamentarias",
+    "secao_e_prestacao_contas",
+    "secao_f_controle_externo",
+    "secao_g_ferramentas_setoriais",
+    "secao_h_poder_legislativo",
+    "secao_i_participacao_social",
+  ];
+
+  for (const key of sectionKeys) {
+    if (raw[key] !== undefined && !isValidObject(raw[key])) {
+      throw new ValidationError(`${key} must be an object`, key);
+    }
+  }
+
+  // Warn about unexpected keys (potential data injection)
+  const expectedKeys = new Set([
+    "metadata", "portais_de_acesso", "lacunas", ...sectionKeys,
+  ]);
+
+  for (const key of Object.keys(raw)) {
+    if (!expectedKeys.has(key)) {
+      // Log warning but don't fail - be tolerant
+      console.warn(`[SourceRegistry] Unexpected field in registry: ${key}`);
+    }
+  }
+
+  return raw as RawRegistry;
+}
+
 interface SectionConfig {
   key: string;
   letter: string;
@@ -27,9 +254,11 @@ interface SectionConfig {
 
 /**
  * Parse raw JSON into normalized SourceRegistry
+ * @throws ValidationError if input is malformed or potentially malicious
  */
 export function parseSourceRegistry(raw: unknown): SourceRegistry {
-  const data = raw as RawRegistry;
+  // SECURITY: Validate input structure before processing
+  const data = validateRawRegistry(raw);
 
   // Extract metadata
   const metadata = {
@@ -62,6 +291,7 @@ export function parseSourceRegistry(raw: unknown): SourceRegistry {
 
 /**
  * Extract global links from portais_de_acesso and other key locations
+ * SECURITY: Validates all URLs before including in output
  */
 function extractGlobalLinks(data: RawRegistry): RegistryLink[] {
   const links: RegistryLink[] = [];
@@ -69,19 +299,28 @@ function extractGlobalLinks(data: RawRegistry): RegistryLink[] {
   // From portais_de_acesso
   if (data.portais_de_acesso) {
     for (const [key, portal] of Object.entries(data.portais_de_acesso)) {
-      if (portal && typeof portal === "object") {
-        const url = portal.url_base || portal.url;
-        if (url) {
-          links.push({
-            id: `global-${key}`,
-            title: portal.nome || key,
-            url,
-            kind: inferLinkKind(key, portal.nome || ""),
-            description: portal.descricao,
-            official: true,
-            sourcePath: `portais_de_acesso.${key}`,
-          });
-        }
+      // SECURITY: Validate portal is a safe object before accessing properties
+      if (!portal || typeof portal !== "object" || Array.isArray(portal)) {
+        continue;
+      }
+
+      const urlCandidate = (portal as Record<string, unknown>).url_base ||
+                          (portal as Record<string, unknown>).url;
+
+      // SECURITY: Validate URL before using
+      if (urlCandidate && isValidUrl(urlCandidate)) {
+        const nome = (portal as Record<string, unknown>).nome;
+        const descricao = (portal as Record<string, unknown>).descricao;
+
+        links.push({
+          id: `global-${key}`,
+          title: isValidString(nome) ? nome : key,
+          url: urlCandidate,
+          kind: inferLinkKind(key, isValidString(nome) ? nome : ""),
+          description: isValidString(descricao) ? descricao : undefined,
+          official: true,
+          sourcePath: `portais_de_acesso.${key}`,
+        });
       }
     }
   }
@@ -257,6 +496,7 @@ function extractSections(data: RawRegistry): RegistrySection[] {
 
 /**
  * Parse a single section
+ * SECURITY: Validates all string fields before including in output
  */
 function parseSection(
   key: string,
@@ -264,8 +504,9 @@ function parseSection(
   raw: RawRegistrySection,
   config: SectionConfig
 ): RegistrySection {
-  const title = raw.titulo || config.defaultTitle;
-  const description = raw.descricao || config.defaultDescription;
+  // SECURITY: Validate and sanitize title and description
+  const title = isValidString(raw.titulo) ? raw.titulo : config.defaultTitle;
+  const description = isValidString(raw.descricao) ? raw.descricao : config.defaultDescription;
 
   const links: RegistryLink[] = [];
 
@@ -309,30 +550,45 @@ function parseSection(
     }
   }
 
+  // SECURITY: Validate notes before including
+  const notes = isValidString(raw.nota) ? [raw.nota] : undefined;
+
   return {
     id: key,
     title,
     description,
     letter,
     links,
-    notes: raw.nota ? [raw.nota] : undefined,
+    notes,
     tags: extractTags(raw),
   };
 }
 
 /**
  * Extract gaps/lacunas from the registry
+ * SECURITY: Validates all string fields before including
  */
 function extractGaps(data: RawRegistry): RegistryGap[] {
   const gaps: RegistryGap[] = [];
 
   // From explicit lacunas array
-  if (data.lacunas) {
+  if (data.lacunas && isValidArray(data.lacunas)) {
     for (const lacuna of data.lacunas) {
+      if (!isValidObject(lacuna)) continue; // Skip invalid entries
+
+      // SECURITY: Validate all string fields
+      const title = isValidString(lacuna.item) ? lacuna.item :
+                    isValidString(lacuna.titulo) ? lacuna.titulo :
+                    "Item não identificado";
+
+      const detail = isValidString(lacuna.recomendacao) ? lacuna.recomendacao :
+                     isValidString(lacuna.detalhe) ? lacuna.detalhe :
+                     undefined;
+
       gaps.push({
-        id: lacuna.id || `gap-${gaps.length}`,
-        title: lacuna.item || lacuna.titulo || "Item não identificado",
-        detail: lacuna.recomendacao || lacuna.detalhe,
+        id: isValidString(lacuna.id) ? lacuna.id : `gap-${gaps.length}`,
+        title,
+        detail,
         severity: inferGapSeverity(lacuna),
         status: inferGapStatus(lacuna.status || lacuna.encontrado),
       });
@@ -351,6 +607,7 @@ function extractGaps(data: RawRegistry): RegistryGap[] {
 
 /**
  * Scan a section for gaps based on status flags
+ * SECURITY: Validates all string fields before including
  */
 function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, gaps: RegistryGap[]): void {
   const arraysToScan = [
@@ -360,14 +617,25 @@ function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, ga
   ];
 
   for (const arr of arraysToScan) {
-    if (Array.isArray(arr)) {
+    if (isValidArray(arr)) {
       for (const item of arr) {
+        if (!isValidObject(item)) continue;
+
         const status = item.status || item.encontrado;
         if (status === "nao_localizado" || status === false || status === "nao_identificadas") {
+          // SECURITY: Validate all string fields
+          const title = isValidString(item.titulo) ? item.titulo :
+                        isValidString(item.nome) ? item.nome :
+                        "Item não localizado";
+
+          const detail = isValidString(item.recomendacao) ? item.recomendacao :
+                         isValidString(item.nota) ? item.nota :
+                         undefined;
+
           gaps.push({
-            id: item.id || `gap-${sectionPath}-${gaps.length}`,
-            title: item.titulo || item.nome || "Item não localizado",
-            detail: item.recomendacao || item.nota,
+            id: isValidString(item.id) ? item.id : `gap-${sectionPath}-${gaps.length}`,
+            title,
+            detail,
             severity: "medium",
             status: "missing",
           });
@@ -379,32 +647,59 @@ function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, ga
 
 /**
  * Create a RegistryLink from a raw document object
+ * SECURITY: Validates URL and sanitizes all string fields
  */
 function createLinkFromDoc(doc: RawRegistryDocument, id: string, defaultKind: LinkKind): RegistryLink | null {
-  const url = doc.url || doc.link || doc.href || doc.portal;
-  if (!url) return null;
+  // SECURITY: Validate URL before using
+  const urlCandidate = doc.url || doc.link || doc.href || doc.portal;
+  if (!urlCandidate || !isValidUrl(urlCandidate)) {
+    return null;
+  }
 
-  const title = doc.titulo || doc.nome || doc.tipo || "Fonte oficial";
+  // SECURITY: Validate and sanitize title
+  let title = "Fonte oficial";
+  if (doc.titulo && isValidString(doc.titulo)) {
+    title = doc.titulo;
+  } else if (doc.nome && isValidString(doc.nome)) {
+    title = doc.nome;
+  } else if (doc.tipo && isValidString(doc.tipo)) {
+    title = doc.tipo;
+  }
 
-  // Safely extract description - handle objects and nested content
+  // SECURITY: Validate and sanitize description
   let description: string | undefined;
-  if (typeof doc.descricao === "string") {
+  if (isValidString(doc.descricao)) {
     description = doc.descricao;
-  } else if (typeof doc.conteudo === "string") {
+  } else if (isValidString(doc.conteudo)) {
     description = doc.conteudo;
-  } else if (typeof doc.nota === "string") {
+  } else if (isValidString(doc.nota)) {
     description = doc.nota;
   } else if (doc.conteudo && typeof doc.conteudo === "object") {
-    // For complex objects, create a simple description
-    const keys = Object.keys(doc.conteudo).slice(0, 3).join(", ");
-    description = keys ? `Contém: ${keys}` : undefined;
+    // SECURITY: Safely extract object description
+    try {
+      // Check if it's a plain object (not null, not array, not a special object)
+      if (doc.conteudo !== null &&
+          !Array.isArray(doc.conteudo) &&
+          Object.getPrototypeOf(doc.conteudo) === Object.prototype) {
+        const keys = Object.keys(doc.conteudo).slice(0, 3);
+        // Validate each key before using
+        const safeKeys = keys.filter(k => isValidString(k));
+        description = safeKeys.length > 0 ? `Contém: ${safeKeys.join(", ")}` : undefined;
+      }
+    } catch {
+      // If anything goes wrong, just skip the description
+      description = undefined;
+    }
   }
+
+  // SECURITY: Validate link kind
+  const kind = isValidLinkKind(doc.kind) ? doc.kind : defaultKind;
 
   return {
     id,
     title,
-    url,
-    kind: (doc.kind as LinkKind) || defaultKind,
+    url: urlCandidate,
+    kind,
     description,
     official: doc.encontrado !== false,
     sourcePath: id,
@@ -476,34 +771,35 @@ function inferGapStatus(status: string | boolean | undefined): RegistryGap["stat
 
 /**
  * Extract URL from object (tries multiple field names)
+ * SECURITY: Validates all URLs before returning
  */
 function extractUrlFromObject(obj: Record<string, unknown>): string | null {
-  const url = obj.url || obj.link || obj.href || obj.portal || obj.url_base;
-  return typeof url === "string" ? url : null;
+  const urlCandidate = obj.url || obj.link || obj.href || obj.portal || obj.url_base;
+  return isValidUrl(urlCandidate) ? urlCandidate : null;
 }
 
 /**
  * Extract title from object
+ * SECURITY: Validates string before returning
  */
 function extractTitleFromObject(obj: Record<string, unknown>): string | null {
-  const title = obj.titulo || obj.nome || obj.title;
-  return typeof title === "string" ? title : null;
+  const titleCandidate = obj.titulo || obj.nome || obj.title;
+  return isValidString(titleCandidate) ? titleCandidate : null;
 }
 
 /**
  * Extract description from object
+ * SECURITY: Validates string before returning
  */
 function extractDescriptionFromObject(obj: Record<string, unknown>): string | undefined {
-  const desc = obj.descricao || obj.description || obj.nota;
-
-  if (typeof desc === "string") {
-    return desc;
+  const descCandidate = obj.descricao || obj.description || obj.nota;
+  if (isValidString(descCandidate)) {
+    return descCandidate;
   }
 
-  // If conteudo is an object, don't use it directly
-  const conteudo = obj.conteudo;
-  if (typeof conteudo === "string") {
-    return conteudo;
+  // If conteudo is a string, validate it
+  if (isValidString(obj.conteudo)) {
+    return obj.conteudo;
   }
 
   return undefined;

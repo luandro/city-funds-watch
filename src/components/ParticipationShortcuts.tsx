@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Calendar, Users, Vote, FileText, ExternalLink, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -178,12 +179,12 @@ export function TrustMicrocopy() {
     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
       <Link2 className="w-3 h-3" />
       <span>Esta página é alimentada por fontes oficiais públicas. Alguns recursos são protótipos.</span>
-      <a
-        href="/sources"
+      <Link
+        to="/sources"
         className="text-primary hover:underline font-medium"
       >
         Ver fontes
-      </a>
+      </Link>
     </div>
   );
 }

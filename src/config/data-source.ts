@@ -14,9 +14,12 @@
  * Production: Use CDN or external API for decoupled data updates
  * Development: Falls back to local public folder file
  */
+const BASE_URL = import.meta.env.BASE_URL || "/";
+const REGISTRY_FILE = "BH-dados-publicos.json";
+
 export const DATA_SOURCE_URL =
   import.meta.env.VITE_DATA_SOURCE_URL ||
-  `${import.meta.env.BASE_URL}BH-dados-publicos.json`;
+  `${BASE_URL}${REGISTRY_FILE}`;
 
 /**
  * Enable/disable external data source

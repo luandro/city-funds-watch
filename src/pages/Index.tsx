@@ -63,6 +63,8 @@ const Index = () => {
   const makeItYoursRef = useRef<HTMLDivElement>(null);
 
   // Load initial data
+  // TODO: When moving to production API, consider consolidating these into
+  // a single getInitialPageData() endpoint to reduce HTTP overhead
   useEffect(() => {
     async function loadData() {
       try {

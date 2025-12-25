@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -15,7 +16,9 @@ import {
   Shield,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  ArrowLeft,
+  ArrowRight
 } from "lucide-react";
 import { formatDate } from "@/utils/formatters";
 
@@ -180,6 +183,7 @@ const TrendIcon = ({ trend }: { trend: "up" | "down" | "flat" }) => {
 };
 
 const Services = () => {
+  const { id } = useParams<{ id: string }>();
   const [services, setServices] = useState<CityService[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -205,6 +209,75 @@ const Services = () => {
         </main>
       </div>
     );
+  }
+
+  if (id) {
+    const service = services.find((s) => s.id === id);
+    if (service) {
+      const Icon = iconMap[service.icon];
+      const statusInfo = statusConfig[service.status];
+
+      return (
+        <div className="min-h-screen bg-background">
+          <Header />
+          <main className="container mx-auto px-4 py-6 md:py-10 space-y-8">
+            <div className="flex items-center gap-2">
+              <Link
+                to="/services"
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar para a lista
+              </Link>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Icon className="w-8 h-8 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-bold">{service.name}</h1>
+                  <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
+                </div>
+                <p className="text-xl text-muted-foreground">{service.category}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Sobre o Serviço</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground">{service.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Última atualização: {formatDate(service.lastUpdate)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {service.metric && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Métricas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm text-muted-foreground">{service.metric.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold">{service.metric.value}</span>
+                        <TrendIcon trend={service.metric.trend} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    }
   }
 
   const normalCount = services.filter((s) => s.status === "normal" || s.status === "improved").length;
@@ -280,8 +353,14 @@ const Services = () => {
                     </div>
                   )}
 
-                  <div className="text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
                     <span>Atualizado: {formatDate(service.lastUpdate)}</span>
+                    <Link
+                      to={`/service/${service.id}`}
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      Detalhes <ArrowRight className="w-3 h-3" />
+                    </Link>
                   </div>
                 </CardContent>
               </Card>

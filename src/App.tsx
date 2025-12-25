@@ -41,8 +41,10 @@ const App = () => (
             <Route path="/local-spend" element={<LocalSpend />} />
             <Route path="/money" element={<LocalSpend />} />
             <Route path="/services" element={<Services />} />
+            <Route path="/service/:id" element={<Services />} />
             <Route path="/hearings" element={<Hearings />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/project/:id" element={<Projects />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

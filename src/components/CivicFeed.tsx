@@ -128,9 +128,15 @@ function FeedItemCard({ item }: { item: FeedItem }) {
           className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
           asChild
         >
-          <Link to={item.detailsUrl}>
-            <ArrowRight size={16} />
-          </Link>
+          {item.detailsUrl.startsWith("http") ? (
+            <a href={item.detailsUrl} target="_blank" rel="noopener noreferrer">
+              <ArrowRight size={16} />
+            </a>
+          ) : (
+            <Link to={item.detailsUrl}>
+              <ArrowRight size={16} />
+            </Link>
+          )}
         </Button>
       )}
     </div>

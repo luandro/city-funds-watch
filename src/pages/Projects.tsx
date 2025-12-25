@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -42,13 +42,14 @@ const kindLabels = {
 
 const Projects = () => {
   const [searchParams] = useSearchParams();
+  const { id: pathId } = useParams();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-  const highlightedId = searchParams.get("id");
+  const highlightedId = pathId || searchParams.get("id");
 
   const loadProjects = async () => {
     setLoading(true);
@@ -57,7 +58,10 @@ const Projects = () => {
       const data = await dataService.getFeedItems();
       // Filter to only show project-type items
       const projectItems = data.filter(
-        (item) => item.kind === "project" || item.kind === "permit"
+        (item) =>
+          item.kind === "project" ||
+          item.kind === "permit" ||
+          item.kind === "indicator_change"
       );
       setItems(projectItems);
     } catch (err) {

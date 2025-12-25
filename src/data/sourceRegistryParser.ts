@@ -278,10 +278,11 @@ function parseSection(
     raw.tipos_proposicoes,
   ];
 
+  let docIndex = 0;
   for (const docs of documentArrays) {
     if (Array.isArray(docs)) {
       for (const doc of docs) {
-        const link = createLinkFromDoc(doc, `${key}-${doc.id || Math.random()}`, letter.toLowerCase() as LinkKind);
+        const link = createLinkFromDoc(doc, `${key}-${doc.id || `doc-${docIndex++}`}`, letter.toLowerCase() as LinkKind);
         if (link) {
           links.push(link);
         }

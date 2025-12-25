@@ -180,9 +180,7 @@ export function LiveSessionPanel({
                   {liveSession.agendaItems.map((item, index) => {
                     const isCurrent =
                       liveSession.nowTopic &&
-                      item.title.toLowerCase().includes(
-                        liveSession.nowTopic.toLowerCase().slice(0, 20)
-                      );
+                      item.title.toLowerCase() === liveSession.nowTopic.toLowerCase();
 
                     return (
                       <div

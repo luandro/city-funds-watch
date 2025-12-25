@@ -104,8 +104,14 @@ const Index = () => {
     if (!preferencesLoaded) return;
 
     async function loadMoneySummaries() {
-      const summaries = await dataService.getTopicMoneySummaries(followedTopics);
-      setMoneySummaries(summaries);
+      try {
+        const summaries = await dataService.getTopicMoneySummaries(followedTopics);
+        setMoneySummaries(summaries);
+      } catch (error) {
+        console.error("Failed to load money summaries:", error);
+        // Fail gracefully - money section will show empty state
+        setMoneySummaries([]);
+      }
     }
 
     loadMoneySummaries();

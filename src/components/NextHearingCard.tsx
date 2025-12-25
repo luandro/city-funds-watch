@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Countdown } from "@/components/Countdown";
 import { Hearing } from "@/data/types";
+import { getSafeLinkProps } from "@/utils/urlValidation";
 import { cn } from "@/lib/utils";
 
 interface NextHearingCardProps {
@@ -81,24 +82,23 @@ export function NextHearingCard({
         )}
 
         <div className="flex flex-wrap gap-3 pt-2">
-          {hearing.scheduleUrl && (
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="gap-1.5"
-            >
-              <a
-                href={hearing.scheduleUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+          {(() => {
+            const linkProps = getSafeLinkProps(hearing.scheduleUrl);
+            return linkProps.href ? (
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="gap-1.5"
               >
-                <Calendar size={16} />
-                Ver agenda completa
-                <ExternalLink size={14} />
-              </a>
-            </Button>
-          )}
+                <a {...linkProps}>
+                  <Calendar size={16} />
+                  Ver agenda completa
+                  <ExternalLink size={14} />
+                </a>
+              </Button>
+            ) : null;
+          })()}
 
           <Button
             variant="default"

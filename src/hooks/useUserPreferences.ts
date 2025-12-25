@@ -9,6 +9,42 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 /**
+ * Validates localStorage data against expected schema
+ * Returns validated preferences or null if invalid
+ */
+function validatePreferences(data: unknown): UserPreferences | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const obj = data as Record<string, unknown>;
+
+  // Validate neighborhood: must be null or a non-empty string
+  if (obj.neighborhood !== null && typeof obj.neighborhood !== "string") {
+    return null;
+  }
+  if (typeof obj.neighborhood === "string" && obj.neighborhood.length > 100) {
+    return null; // Prevent excessively long strings
+  }
+
+  // Validate followedTopics: must be an array of strings
+  if (!Array.isArray(obj.followedTopics)) {
+    return null;
+  }
+  if (obj.followedTopics.length > 50) {
+    return null; // Prevent excessively large arrays
+  }
+  if (!obj.followedTopics.every((t): t is string => typeof t === "string" && t.length <= 100)) {
+    return null;
+  }
+
+  return {
+    neighborhood: obj.neighborhood as string | null,
+    followedTopics: obj.followedTopics,
+  };
+}
+
+/**
  * Custom hook for managing user preferences in local storage
  * Handles neighborhood selection and topic following
  */
@@ -21,11 +57,24 @@ export function useUserPreferences() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as UserPreferences;
-        setPreferences(parsed);
+        const parsed = JSON.parse(stored);
+        const validated = validatePreferences(parsed);
+        if (validated) {
+          setPreferences(validated);
+        } else {
+          // Invalid data - clear it to prevent future issues
+          console.warn("Invalid preferences in localStorage, resetting to defaults");
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
     } catch (error) {
       console.warn("Failed to load preferences from localStorage:", error);
+      // Clear potentially corrupted data
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // Ignore removal errors
+      }
     }
     setIsLoaded(true);
   }, []);

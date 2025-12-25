@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { LiveBadge } from "@/components/LiveBadge";
 import { QuestionsPanel } from "@/components/QuestionsPanel";
 import { Hearing, LiveSession, Question } from "@/data/types";
+import { getSafeLinkProps } from "@/utils/urlValidation";
 import { cn } from "@/lib/utils";
 
 interface LiveSessionPanelProps {
@@ -62,19 +63,18 @@ export function LiveSessionPanel({
             </CardTitle>
           </div>
 
-          {hearing.watchUrl && (
-            <Button asChild className="gap-1.5 shrink-0">
-              <a
-                href={hearing.watchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Play size={16} />
-                Assistir ao vivo
-                <ExternalLink size={14} />
-              </a>
-            </Button>
-          )}
+          {(() => {
+            const linkProps = getSafeLinkProps(hearing.watchUrl);
+            return linkProps.href ? (
+              <Button asChild className="gap-1.5 shrink-0">
+                <a {...linkProps}>
+                  <Play size={16} />
+                  Assistir ao vivo
+                  <ExternalLink size={14} />
+                </a>
+              </Button>
+            ) : null;
+          })()}
         </div>
 
         {liveSession.nowTopic && (

@@ -246,10 +246,13 @@ class DataService {
         feedItems,
       };
     } catch (error) {
-      // Return error state with cached data if available
+      // Log the actual error for debugging (server-side only in production)
+      console.error("Failed to load landing page state:", error);
+
+      // Return error state with sanitized message (never expose internal errors to users)
       return {
         mode: "error",
-        errorMessage: error instanceof Error ? error.message : "Dados temporariamente indisponíveis",
+        errorMessage: "Dados temporariamente indisponíveis. Tente novamente em alguns minutos.",
         lastCachedHearing: mockNextHearing, // Would use actual cache in production
       };
     }

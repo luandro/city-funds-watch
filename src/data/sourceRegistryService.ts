@@ -110,7 +110,15 @@ class SourceRegistryService {
       return parseSourceRegistry(raw);
     } catch (err) {
       const error = err as Error;
-      console.error("Failed to load source registry:", error);
+
+      // Secure logging: only log safe, actionable information
+      // In production, consider using a proper logging service
+      if (import.meta.env.DEV) {
+        console.error("Failed to load source registry:", error.message);
+      } else {
+        // Production: minimal logging without exposing internal details
+        console.error("Registry load failed");
+      }
 
       // Return a minimal fallback registry
       return this.createFallbackRegistry(error);

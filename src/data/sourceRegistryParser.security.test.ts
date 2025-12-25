@@ -94,10 +94,7 @@ function runSecurityTests() {
 
   console.log("📋 Prototype Pollution Prevention Tests");
   test("should reject __proto__ pollution attempt", () => {
-    const malicious = {
-      metadata: {},
-      "__proto__": { polluted: true },
-    };
+    const malicious = JSON.parse('{"metadata": {}, "__proto__": {"polluted": true}}');
 
     expect(() => parseSourceRegistry(malicious)).toThrow();
   });
@@ -121,12 +118,7 @@ function runSecurityTests() {
   });
 
   test("should reject nested prototype pollution", () => {
-    const malicious = {
-      metadata: {
-        municipio: "Belo Horizonte",
-        "__proto__": { polluted: true },
-      },
-    };
+    const malicious = JSON.parse('{"metadata": {"municipio": "Belo Horizonte", "__proto__": {"polluted": true}}}');
 
     expect(() => parseSourceRegistry(malicious)).toThrow();
   });

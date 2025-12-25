@@ -164,6 +164,9 @@ function isValidObject(value: unknown, maxDepth = 10): value is Record<string, u
   // Recursively check nested objects (with depth limit)
   for (const key of keys) {
     const val = (value as Record<string, unknown>)[key];
+    if (typeof val === "function") {
+      return false;
+    }
     if (typeof val === "object" && val !== null && !Array.isArray(val)) {
       if (!isValidObject(val, maxDepth - 1)) {
         return false;
@@ -263,9 +266,10 @@ export function parseSourceRegistry(raw: unknown): SourceRegistry {
   // Extract metadata
   const metadata = {
     loadedAtISO: new Date().toISOString(),
-    version: data.metadata?.versao_dossiê || data.metadata?.data_compilacao || undefined,
-    municipality: data.metadata?.municipio || "Belo Horizonte",
-    state: data.metadata?.estado || "Minas Gerais",
+    version: isValidString(data.metadata?.versao_dossiê) ? data.metadata?.versao_dossiê : 
+             isValidString(data.metadata?.data_compilacao) ? data.metadata?.data_compilacao : undefined,
+    municipality: isValidString(data.metadata?.municipio) ? data.metadata?.municipio : "Belo Horizonte",
+    state: isValidString(data.metadata?.estado) ? data.metadata?.estado : "Minas Gerais",
   };
 
   // Extract global links from portais_de_acesso
@@ -315,7 +319,7 @@ function extractGlobalLinks(data: RawRegistry): RegistryLink[] {
         links.push({
           id: `global-${key}`,
           title: isValidString(nome) ? nome : key,
-          url: urlCandidate,
+          url: urlCandidate.trim(),
           kind: inferLinkKind(key, isValidString(nome) ? nome : ""),
           description: isValidString(descricao) ? descricao : undefined,
           official: true,
@@ -698,7 +702,7 @@ function createLinkFromDoc(doc: RawRegistryDocument, id: string, defaultKind: Li
   return {
     id,
     title,
-    url: urlCandidate,
+    url: urlCandidate.trim(),
     kind,
     description,
     official: doc.encontrado !== false,
@@ -775,7 +779,7 @@ function inferGapStatus(status: string | boolean | undefined): RegistryGap["stat
  */
 function extractUrlFromObject(obj: Record<string, unknown>): string | null {
   const urlCandidate = obj.url || obj.link || obj.href || obj.portal || obj.url_base;
-  return isValidUrl(urlCandidate) ? urlCandidate : null;
+  return isValidUrl(urlCandidate) ? urlCandidate.trim() : null;
 }
 
 /**

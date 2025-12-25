@@ -344,7 +344,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "in_progress",
     updatedAtISO: hoursAgo(2),
     shortWhyItMatters: "Revitalização do espaço público mais visitado da cidade",
-    detailsUrl: "/project/praca-liberdade",
+    detailsUrl: "/projects?id=feed-001",
     moneyBrief: {
       planned: 4_500_000,
       paid: 2_100_000,
@@ -360,7 +360,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "new",
     updatedAtISO: hoursAgo(6),
     shortWhyItMatters: "Redução de 20min no trajeto Centro-Venda Nova",
-    detailsUrl: "/service/linha-expresso",
+    detailsUrl: "/services",
   },
   {
     id: "feed-003",
@@ -371,7 +371,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "in_progress",
     updatedAtISO: hoursAgo(12),
     shortWhyItMatters: "Área verde de 15 hectares em análise",
-    detailsUrl: "/permit/parque-barreiro",
+    detailsUrl: "/projects?id=feed-003",
   },
   {
     id: "feed-004",
@@ -382,7 +382,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "in_progress",
     updatedAtISO: hoursAgo(24),
     shortWhyItMatters: "Dobrar capacidade de atendimento de urgência",
-    detailsUrl: "/project/upa-pampulha",
+    detailsUrl: "/projects?id=feed-004",
     moneyBrief: {
       planned: 2_800_000,
       paid: 1_400_000,
@@ -399,7 +399,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "delayed",
     updatedAtISO: hoursAgo(48),
     shortWhyItMatters: "Atraso de 8 meses - Licitação de materiais",
-    detailsUrl: "/project/escola-horizonte",
+    detailsUrl: "/projects?id=feed-005",
     moneyBrief: {
       planned: 8_200_000,
       paid: 2_050_000,
@@ -415,7 +415,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "at_risk",
     updatedAtISO: hoursAgo(72),
     shortWhyItMatters: "Execução 30% abaixo do previsto",
-    detailsUrl: "/project/via-expressa",
+    detailsUrl: "/projects?id=feed-006",
     moneyBrief: {
       planned: 12_000_000,
       paid: 3_600_000,
@@ -431,7 +431,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "delayed",
     updatedAtISO: hoursAgo(96),
     shortWhyItMatters: "Atraso de 4 meses - Licenciamento pendente",
-    detailsUrl: "/project/cs-santa-tereza",
+    detailsUrl: "/projects?id=feed-007",
     moneyBrief: {
       planned: 1_500_000,
       paid: 450_000,
@@ -447,7 +447,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "at_risk",
     updatedAtISO: hoursAgo(120),
     shortWhyItMatters: "Prazo comprometido - falta de mão de obra",
-    detailsUrl: "/project/brt-venda-nova",
+    detailsUrl: "/projects?id=feed-008",
     moneyBrief: {
       planned: 45_000_000,
       paid: 13_500_000,
@@ -473,7 +473,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "new",
     updatedAtISO: hoursAgo(8),
     shortWhyItMatters: "Aumento de R$ 45M para UPAs",
-    detailsUrl: "/money",
+    detailsUrl: "/local-spend",
     moneyBrief: {
       planned: 890_000_000,
       progressPct: 68,
@@ -487,7 +487,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "in_progress",
     updatedAtISO: hoursAgo(16),
     shortWhyItMatters: "Taxa de atendimento subiu de 72% para 78%",
-    detailsUrl: "/indicators/creches",
+    detailsUrl: "/projects",
   },
   {
     id: "feed-012",
@@ -498,7 +498,7 @@ export const mockFeedItems: FeedItem[] = [
     statusBadge: "new",
     updatedAtISO: hoursAgo(20),
     shortWhyItMatters: "5.000 pontos de luz serão substituídos",
-    detailsUrl: "/permit/led-centro",
+    detailsUrl: "/projects?id=feed-012",
     moneyBrief: {
       planned: 8_500_000,
       progressPct: 0,

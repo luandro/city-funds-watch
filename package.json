@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "lint-staged": "lint-staged",
-    "test": "tsx src/data/sourceRegistryParser.test.ts && tsx src/data/sourceRegistryParser.security.test.ts",
+    "test": "tsx src/data/sourceRegistryParser.test.ts && tsx src/data/sourceRegistryParser.security.test.ts && tsx src/data/sourceRegistryParser.refactoring.test.ts && tsx src/data/sourceRegistryParser.production.test.ts",
     "prepare": "husky",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",

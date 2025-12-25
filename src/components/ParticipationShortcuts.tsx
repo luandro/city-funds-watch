@@ -149,7 +149,7 @@ export function ParticipationShortcuts({ className }: { className?: string }) {
             className="h-auto flex-col items-center justify-center py-4 px-3 gap-2 hover:bg-primary/5 hover:border-primary/20 group"
           >
             <a
-              href={shortcut.url!}
+              href={shortcut.url || "#"}
               target="_blank"
               rel="noopener noreferrer"
               className="flex flex-col items-center"

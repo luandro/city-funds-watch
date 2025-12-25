@@ -121,6 +121,7 @@ export interface RawRegistrySection {
   descricao?: string;
   documentos?: RawRegistryDocument[];
   plans?: RawRegistryDocument[];
+  planos?: RawRegistryDocument[];
   conselhos?: RawRegistryDocument[];
   relatorios?: RawRegistryDocument[];
   tipos_proposicoes?: RawRegistryDocument[];

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Landmark, Radio, Wallet } from "lucide-react";
+import { Landmark, Radio, Wallet, HardHat, Building2, Calendar } from "lucide-react";
 
 export function Header() {
   const location = useLocation();
@@ -7,6 +7,9 @@ export function Header() {
   const navItems = [
     { path: "/", label: "Agora", icon: Radio },
     { path: "/local-spend", label: "Dinheiro", icon: Wallet },
+    { path: "/projects", label: "Obras", icon: HardHat },
+    { path: "/services", label: "Serviços", icon: Building2 },
+    { path: "/hearings", label: "Audiências", icon: Calendar },
   ];
 
   return (

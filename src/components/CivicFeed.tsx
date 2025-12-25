@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   MapPin,
   AlertTriangle,
@@ -18,7 +19,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FeedItem, FeedItemKind } from "@/data/types";
 import { formatMoney } from "@/utils/formatters";
-import { getSafeLinkProps } from "@/utils/urlValidation";
 import { cn } from "@/lib/utils";
 
 interface CivicFeedProps {
@@ -121,21 +121,24 @@ function FeedItemCard({ item }: { item: FeedItem }) {
         )}
       </div>
 
-      {(() => {
-        const linkProps = getSafeLinkProps(item.detailsUrl);
-        return linkProps.href ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            asChild
-          >
-            <a {...linkProps}>
+      {item.detailsUrl && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          asChild
+        >
+          {item.detailsUrl.startsWith("http") ? (
+            <a href={item.detailsUrl} target="_blank" rel="noopener noreferrer">
               <ArrowRight size={16} />
             </a>
-          </Button>
-        ) : null;
-      })()}
+          ) : (
+            <Link to={item.detailsUrl}>
+              <ArrowRight size={16} />
+            </Link>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

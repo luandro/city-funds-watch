@@ -42,3 +42,10 @@
 ## Configuration & Architecture Notes
 - The landing page uses a state-machine style flow under `src/components/ParticipationNow.tsx` and `src/pages/Index.tsx`.
 - Data access is centralized in `src/data/dataService.ts`, which currently serves mock data.
+
+## GitHub CLI Reference
+- **Add reaction to PR**: `gh api -X POST repos/OWNER/REPO/issues/PR_NUMBER/reactions -f content="+1"`
+  - Example: `gh api -X POST repos/luandro/city-funds-watch/issues/4/reactions -f content="+1"`
+  - Note: React to the PR itself (issues/4), not individual comments, as comment reactions may not be accessible via API
+- **View PR comments**: `gh pr view 4 --json comments,reviews`
+- **Fetch specific comment**: `gh api repos/OWNER/REPO/issues/COMMENT_ID` (may return 404 if comment is from a bot or deleted)

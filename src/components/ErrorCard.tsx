@@ -43,7 +43,7 @@ export function ErrorCard({
             </p>
             <p className="font-medium text-sm">{lastCachedHearing.title}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {new Date(lastCachedHearing.startsAtISO).toLocaleDateString("pt-BR", {
+              {new Date(lastCachedHearing.startsAtISO).toLocaleString("pt-BR", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",

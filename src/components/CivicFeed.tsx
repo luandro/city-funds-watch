@@ -47,7 +47,7 @@ function formatTimeAgo(isoDate: string): string {
 
   if (diffHours < 1) return "agora";
   if (diffHours < 24) return `há ${diffHours}h`;
-  if (diffDays < 7) return `há ${diffDays} dia(s)`;
+  if (diffDays < 7) return `há ${diffDays} ${diffDays === 1 ? "dia" : "dias"}`;
   return date.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
 }
 

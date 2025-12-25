@@ -7,6 +7,7 @@ import {
   Question,
   FeedItem,
   LandingPageState,
+  VoteChange,
 } from "./types";
 import {
   mockHomeSummary,
@@ -114,10 +115,12 @@ class DataService {
     throw new Error("API source not implemented yet");
   }
 
-  async voteQuestion(questionId: string, direction: "up" | "down"): Promise<void> {
+  async voteQuestion(questionId: string, voteChange: VoteChange): Promise<void> {
     if (this.config.source === "mock") {
       await this.simulateDelay(100);
-      // In real implementation, this would POST to API
+      // In real implementation, this would POST vote change to API
+      // The voteChange contains prev and next vote states for proper delta calculation
+      // e.g., prev: "up", next: "down" means -2 vote delta
       return;
     }
     throw new Error("API source not implemented yet");
@@ -213,15 +216,18 @@ class DataService {
 
   async getLandingPageState(): Promise<LandingPageState> {
     try {
-      const [liveSession, nextHearing, feedItems] = await Promise.all([
+      // Fetch hearing first to get its ID for questions
+      const nextHearing = await this.getNextHearing();
+
+      // Fetch all other data in parallel (including questions if we have a hearing)
+      const [liveSession, feedItems, questions] = await Promise.all([
         this.getLiveSession(),
-        this.getNextHearing(),
         this.getFeedItems(),
+        nextHearing ? this.getQuestions(nextHearing.id) : Promise.resolve([]),
       ]);
 
       // Determine mode based on live session and hearing availability
       if (liveSession?.isLive && nextHearing) {
-        const questions = await this.getQuestions(nextHearing.id);
         return {
           mode: "live",
           hearing: { ...nextHearing, status: "live" },
@@ -232,7 +238,6 @@ class DataService {
       }
 
       if (nextHearing) {
-        const questions = await this.getQuestions(nextHearing.id);
         return {
           mode: "next_hearing",
           hearing: nextHearing,

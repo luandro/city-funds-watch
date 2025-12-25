@@ -8,6 +8,12 @@ export type TrendDirection = "up" | "down" | "flat";
 export type FiscalStatus = "green" | "yellow" | "red" | "gray";
 export type SpendBucketLabel = "Local (BH)" | "Metro Area" | "State" | "National" | "Outside";
 
+// Vote change for proper vote delta calculation
+export interface VoteChange {
+  prev: "up" | "down" | undefined;
+  next: "up" | "down" | undefined;
+}
+
 // ============================================================
 // PARTICIPATION & HEARINGS
 // ============================================================

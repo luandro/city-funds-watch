@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LiveBadge } from "@/components/LiveBadge";
 import { QuestionsPanel } from "@/components/QuestionsPanel";
-import { Hearing, LiveSession, Question } from "@/data/types";
+import { Hearing, LiveSession, Question, VoteChange } from "@/data/types";
 import { getSafeLinkProps } from "@/utils/urlValidation";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ interface LiveSessionPanelProps {
   hearing: Hearing;
   liveSession: LiveSession;
   questions: Question[];
-  onVote?: (questionId: string, direction: "up" | "down") => void;
+  onVote?: (questionId: string, voteChange: VoteChange) => void;
   onSubmitQuestion?: (title: string) => void;
   className?: string;
 }

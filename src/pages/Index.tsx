@@ -7,7 +7,7 @@ import { CivicFeed } from "@/components/CivicFeed";
 import { MoneyBriefly } from "@/components/MoneyBriefly";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { dataService } from "@/data/dataService";
-import { LandingPageState, FeedItem, Question } from "@/data/types";
+import { LandingPageState, FeedItem, Question, VoteChange } from "@/data/types";
 import { TopicMoneySummary } from "@/data/mockData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
@@ -137,16 +137,10 @@ const Index = () => {
     }
   }, []);
 
-  const handleVote = useCallback(async (questionId: string, direction: "up" | "down") => {
-    // Optimistically update the vote count
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id !== questionId) return q;
-        // This is handled in QuestionsPanel UI for immediate feedback
-        return q;
-      })
-    );
-    await dataService.voteQuestion(questionId, direction);
+  const handleVote = useCallback(async (questionId: string, voteChange: VoteChange) => {
+    // The QuestionsPanel handles optimistic UI updates internally
+    // Here we just send the vote change to the backend
+    await dataService.voteQuestion(questionId, voteChange);
   }, []);
 
   const handleSubmitQuestion = useCallback(async (title: string) => {

@@ -14,11 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Question, QuestionStatus } from "@/data/types";
+import { Question, QuestionStatus, VoteChange } from "@/data/types";
 
 interface QuestionsPanelProps {
   questions: Question[];
-  onVote?: (questionId: string, direction: "up" | "down") => void;
+  onVote?: (questionId: string, voteChange: VoteChange) => void;
   onSubmitQuestion?: (title: string, topicTag?: string, neighborhoodTag?: string) => void;
   className?: string;
 }
@@ -58,7 +58,8 @@ function formatTimeAgo(isoDate: string): string {
   if (diffMins < 1) return "agora";
   if (diffMins < 60) return `há ${diffMins}min`;
   if (diffHours < 24) return `há ${diffHours}h`;
-  return `há ${Math.floor(diffHours / 24)} dia(s)`;
+  const days = Math.floor(diffHours / 24);
+  return `há ${days} ${days === 1 ? "dia" : "dias"}`;
 }
 
 export function QuestionsPanel({
@@ -90,9 +91,11 @@ export function QuestionsPanel({
 
   const handleVote = (questionId: string, direction: "up" | "down") => {
     const currentVote = votedQuestions[questionId];
+    let nextVote: "up" | "down" | undefined = direction;
 
     if (currentVote === direction) {
-      // Remove vote
+      // User is toggling off their vote
+      nextVote = undefined;
       setVotedQuestions((prev) => {
         const next = { ...prev };
         delete next[questionId];
@@ -103,7 +106,8 @@ export function QuestionsPanel({
       setVotedQuestions((prev) => ({ ...prev, [questionId]: direction }));
     }
 
-    onVote?.(questionId, direction);
+    // Pass previous and next vote status to the parent for correct handling
+    onVote?.(questionId, { prev: currentVote, next: nextVote });
   };
 
   const handleSubmit = (e: React.FormEvent) => {

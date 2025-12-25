@@ -1,4 +1,4 @@
-import { Hearing, LiveSession, Question, LandingPageMode } from "@/data/types";
+import { Hearing, LiveSession, Question, LandingPageMode, VoteChange } from "@/data/types";
 import { LiveSessionPanel } from "@/components/LiveSessionPanel";
 import { NextHearingCard } from "@/components/NextHearingCard";
 import { NoHearingsCard } from "@/components/NoHearingsCard";
@@ -14,7 +14,7 @@ interface ParticipationNowProps {
   lastCachedHearing?: Hearing;
   errorMessage?: string;
   isLoading?: boolean;
-  onVote?: (questionId: string, direction: "up" | "down") => void;
+  onVote?: (questionId: string, voteChange: VoteChange) => void;
   onSubmitQuestion?: (title: string) => void;
   onOpenQuestionForm?: () => void;
   onRetry?: () => void;

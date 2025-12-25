@@ -105,6 +105,7 @@ export interface RawRegistryDocument {
   url?: string;
   link?: string;
   href?: string;
+  portal?: string;
   encontrado?: boolean;
   status?: string;
   nota?: string;

@@ -248,7 +248,7 @@ function extractSections(data: RawRegistry): RegistrySection[] {
     const rawSection = data[config.key];
 
     if (rawSection) {
-      sections.push(parseSection(config.key, config.letter, rawSection, config));
+      sections.push(parseSection(config.key, config.letter, rawSection as RawRegistrySection, config));
     }
   }
 
@@ -293,14 +293,14 @@ function parseSection(
   for (const [nestedKey, nestedValue] of Object.entries(raw)) {
     if (nestedValue && typeof nestedValue === "object" && !Array.isArray(nestedValue)) {
       // Look for URL fields in nested objects
-      const url = extractUrlFromObject(nestedValue);
+      const url = extractUrlFromObject(nestedValue as Record<string, unknown>);
       if (url) {
         links.push({
           id: `${key}-${nestedKey}`,
-          title: extractTitleFromObject(nestedValue) || nestedKey,
+          title: extractTitleFromObject(nestedValue as Record<string, unknown>) || nestedKey,
           url,
           kind: inferLinkKindFromKey(nestedKey),
-          description: extractDescriptionFromObject(nestedValue),
+          description: extractDescriptionFromObject(nestedValue as Record<string, unknown>),
           official: true,
           sourcePath: `${key}.${nestedKey}`,
         });
@@ -403,7 +403,7 @@ function createLinkFromDoc(doc: RawRegistryDocument, id: string, defaultKind: Li
     id,
     title,
     url,
-    kind: doc.kind || defaultKind,
+    kind: (doc.kind as LinkKind) || defaultKind,
     description,
     official: doc.encontrado !== false,
     sourcePath: id,

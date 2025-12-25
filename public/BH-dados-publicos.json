@@ -111,11 +111,12 @@
         "id": "LEG-002",
         "titulo": "Código Tributário Municipal - Lei nº 1.310/1966",
         "tipo": "Lei",
-        "url": "https://www.lefisc.com.br/regulamentos/ctmBeloHorizonte/conteudo.asp",
+        "url": "https://cmbhweb.cmbh.mg.gov.br/legislation",
         "orgao_emissor": "Câmara Municipal",
         "ano": 1966,
         "encontrado": true,
         "atualizado_em": "2019-12-19",
+        "nota": "Disponível no Portal CMBH - buscar por 'Lei 1310 1966'",
         "tributos_municipais": ["IPTU", "ITBI", "ISS", "Taxas"]
       },
       {

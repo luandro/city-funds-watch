@@ -97,8 +97,8 @@ class SourceRegistryService {
    */
   private async loadAndParse(): Promise<SourceRegistry> {
     try {
-      // Try to load from public folder
-      const response = await fetch("/BH-dados-publicos.json");
+      // Try to load from public folder with BASE_URL prefix
+      const response = await fetch(`${import.meta.env.BASE_URL}BH-dados-publicos.json`);
 
       if (!response.ok) {
         throw new Error(`Failed to load registry: ${response.status} ${response.statusText}`);

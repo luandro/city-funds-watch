@@ -156,6 +156,35 @@ interface UserPreferences {
 
 Use the "Limpar preferências" button to reset.
 
+## Future TODOs
+
+These improvements are documented for when the project moves to production:
+
+### API Integration
+- [ ] **Consolidate initial data fetching** - When connecting to a real backend, consider creating a single `getInitialPageData()` endpoint that returns all landing page data in one request, reducing HTTP overhead. Currently documented in `src/pages/Index.tsx`.
+
+### Performance
+- [x] **Code splitting** - Implemented with React.lazy for below-the-fold components (MakeItYours, CivicFeed, MoneyBriefly)
+- [x] **Vendor chunking** - Configured in `vite.config.ts` to split React, Radix UI, and Recharts into separate chunks
+
+### Security (Implemented)
+- [x] **URL validation** - Prevents `javascript:`, `data:` and other unsafe URL schemes (`src/utils/urlValidation.ts`)
+- [x] **localStorage validation** - Schema validation with size limits (`src/hooks/useUserPreferences.ts`)
+- [x] **Error sanitization** - Internal errors are not exposed to users (`src/data/dataService.ts`)
+
+### Accessibility
+- [ ] **Screen reader testing** - Full accessibility audit with NVDA/VoiceOver
+- [ ] **Keyboard navigation** - Ensure all interactive elements are keyboard accessible
+- [ ] **ARIA labels** - Add comprehensive ARIA labels for complex components
+
+### Internationalization
+- [ ] **i18n framework** - Currently hardcoded in Portuguese (pt-BR), consider adding i18next for multi-language support
+
+### Testing
+- [ ] **Unit tests** - Add Jest/Vitest tests for utilities and hooks
+- [ ] **Component tests** - Add React Testing Library tests for key components
+- [ ] **E2E tests** - Add Playwright tests for critical user flows
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.

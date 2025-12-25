@@ -1,17 +1,30 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
 import { ParticipationNow } from "@/components/ParticipationNow";
-import { MakeItYours } from "@/components/MakeItYours";
-import { CivicFeed } from "@/components/CivicFeed";
-import { MoneyBriefly } from "@/components/MoneyBriefly";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Skeleton } from "@/components/ui/skeleton";
 import { dataService } from "@/data/dataService";
 import { LandingPageState, FeedItem, Question, VoteChange } from "@/data/types";
 import { TopicMoneySummary } from "@/data/mockData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/utils/formatters";
+
+// Lazy load below-the-fold components for better initial load performance
+const MakeItYours = lazy(() => import("@/components/MakeItYours").then(m => ({ default: m.MakeItYours })));
+const CivicFeed = lazy(() => import("@/components/CivicFeed").then(m => ({ default: m.CivicFeed })));
+const MoneyBriefly = lazy(() => import("@/components/MoneyBriefly").then(m => ({ default: m.MoneyBriefly })));
+
+// Loading fallback for lazy components
+function SectionSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  );
+}
 
 // Helper function to filter feed items locally
 function filterFeedItems(
@@ -206,40 +219,46 @@ const Index = () => {
           />
         </ErrorBoundary>
 
-        {/* SECTION 2: Make it Yours - Personalization */}
+        {/* SECTION 2: Make it Yours - Personalization (lazy loaded) */}
         <ErrorBoundary sectionName="Personalização">
-          <div ref={makeItYoursRef}>
-            <MakeItYours
-              neighborhoods={neighborhoods}
-              topics={topics}
-              suggestedTopics={suggestedTopics}
-              selectedNeighborhood={neighborhood}
-              followedTopics={followedTopics}
-              onNeighborhoodChange={setNeighborhood}
-              onTopicToggle={toggleTopic}
-              onReset={resetPreferences}
-            />
-          </div>
+          <Suspense fallback={<SectionSkeleton />}>
+            <div ref={makeItYoursRef}>
+              <MakeItYours
+                neighborhoods={neighborhoods}
+                topics={topics}
+                suggestedTopics={suggestedTopics}
+                selectedNeighborhood={neighborhood}
+                followedTopics={followedTopics}
+                onNeighborhoodChange={setNeighborhood}
+                onTopicToggle={toggleTopic}
+                onReset={resetPreferences}
+              />
+            </div>
+          </Suspense>
         </ErrorBoundary>
 
-        {/* SECTION 3: Your Civic Feed */}
+        {/* SECTION 3: Your Civic Feed (lazy loaded) */}
         <ErrorBoundary sectionName="Feed Cívico">
-          <CivicFeed
-            items={filteredFeed}
-            neighborhood={neighborhood}
-            isLoading={loading}
-            isFiltering={!isFeedReady}
-          />
+          <Suspense fallback={<SectionSkeleton />}>
+            <CivicFeed
+              items={filteredFeed}
+              neighborhood={neighborhood}
+              isLoading={loading}
+              isFiltering={!isFeedReady}
+            />
+          </Suspense>
         </ErrorBoundary>
 
-        {/* SECTION 4: Money, Briefly */}
+        {/* SECTION 4: Money, Briefly (lazy loaded) */}
         <ErrorBoundary sectionName="Dinheiro">
-          <MoneyBriefly
-            summaries={moneySummaries}
-            localSpendHeadline={localSpendHeadline || undefined}
-            followedTopics={followedTopics}
-            isLoading={loading}
-          />
+          <Suspense fallback={<SectionSkeleton />}>
+            <MoneyBriefly
+              summaries={moneySummaries}
+              localSpendHeadline={localSpendHeadline || undefined}
+              followedTopics={followedTopics}
+              isLoading={loading}
+            />
+          </Suspense>
         </ErrorBoundary>
 
         {/* Timestamp */}

@@ -182,33 +182,46 @@ const Hearings = () => {
                       {/* Actions */}
                       <div className="flex flex-wrap gap-2 pt-2">
                         {hearing.watchUrl && (
-                          <a
-                            href={hearing.watchUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                          <Button
+                            asChild
+                            size="sm"
+                            className="gap-1.5"
                           >
-                            <Radio className="w-3.5 h-3.5" />
-                            Assistir
-                          </a>
+                            <a
+                              href={hearing.watchUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Radio className="w-3.5 h-3.5" />
+                              Assistir
+                            </a>
+                          </Button>
                         )}
-                        <Link
-                          to="/"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border hover:bg-muted transition-colors"
+                        <Button
+                          disabled
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
                         >
                           <Users className="w-3.5 h-3.5" />
                           Participar
-                        </Link>
+                        </Button>
                         {hearing.scheduleUrl && (
-                          <a
-                            href={hearing.scheduleUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground gap-1.5"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Site oficial
-                          </a>
+                            <a
+                              href={hearing.scheduleUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Site oficial
+                            </a>
+                          </Button>
                         )}
                       </div>
                     </CardContent>

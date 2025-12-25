@@ -353,8 +353,8 @@ function extractShortcuts(data: RawRegistry, globalLinks: RegistryLink[]): Globa
   if (participationSection) {
     // OP
     if (participationSection.orcamento_participativo && !shortcuts.participatoryBudgeting) {
-      shortcuts.participatoryBudgeting = createLinkFromDoc(
-        participationSection.orcamento_participativo,
+      shortcuts.participatoryBudgeting = createLinkFromNode(
+        participationSection.orcamento_participativo as Record<string, unknown>,
         "shortcuts-op",
         "op"
       );
@@ -362,8 +362,8 @@ function extractShortcuts(data: RawRegistry, globalLinks: RegistryLink[]): Globa
 
     // Ouvidoria
     if (participationSection.ouvidoria && !shortcuts.ombudsman) {
-      shortcuts.ombudsman = createLinkFromDoc(
-        participationSection.ouvidoria,
+      shortcuts.ombudsman = createLinkFromNode(
+        participationSection.ouvidoria as Record<string, unknown>,
         "shortcuts-ouvidoria",
         "ombudsman"
       );
@@ -371,8 +371,8 @@ function extractShortcuts(data: RawRegistry, globalLinks: RegistryLink[]): Globa
 
     // LAI
     if (participationSection.lei_acesso_informacao && !shortcuts.lai) {
-      shortcuts.lai = createLinkFromDoc(
-        participationSection.lei_acesso_informacao,
+      shortcuts.lai = createLinkFromNode(
+        participationSection.lei_acesso_informacao as Record<string, unknown>,
         "shortcuts-lai",
         "lai"
       );
@@ -380,8 +380,8 @@ function extractShortcuts(data: RawRegistry, globalLinks: RegistryLink[]): Globa
 
     // Transparency portal
     if (participationSection.portal_transparencia && !shortcuts.transparencyPortal) {
-      shortcuts.transparencyPortal = createLinkFromDoc(
-        participationSection.portal_transparencia,
+      shortcuts.transparencyPortal = createLinkFromNode(
+        participationSection.portal_transparencia as Record<string, unknown>,
         "shortcuts-transparencia",
         "transparency"
       );
@@ -512,47 +512,9 @@ function parseSection(
   const title = isValidString(raw.titulo) ? raw.titulo : config.defaultTitle;
   const description = isValidString(raw.descricao) ? raw.descricao : config.defaultDescription;
 
-  const links: RegistryLink[] = [];
-
-  // Extract from various possible arrays
-  const documentArrays = [
-    raw.documentos,
-    raw.plans,
-    raw.conselhos,
-    raw.relatorios,
-    raw.tipos_proposicoes,
-  ];
-
-  let docIndex = 0;
-  for (const docs of documentArrays) {
-    if (Array.isArray(docs)) {
-      for (const doc of docs) {
-        const link = createLinkFromDoc(doc, `${key}-${doc.id || `doc-${docIndex++}`}`, letter.toLowerCase() as LinkKind);
-        if (link) {
-          links.push(link);
-        }
-      }
-    }
-  }
-
-  // Check for nested objects with URLs (ciclos, etc.)
-  for (const [nestedKey, nestedValue] of Object.entries(raw)) {
-    if (nestedValue && typeof nestedValue === "object" && !Array.isArray(nestedValue)) {
-      // Look for URL fields in nested objects
-      const url = extractUrlFromObject(nestedValue as Record<string, unknown>);
-      if (url) {
-        links.push({
-          id: `${key}-${nestedKey}`,
-          title: extractTitleFromObject(nestedValue as Record<string, unknown>) || nestedKey,
-          url,
-          kind: inferLinkKindFromKey(nestedKey),
-          description: extractDescriptionFromObject(nestedValue as Record<string, unknown>),
-          official: true,
-          sourcePath: `${key}.${nestedKey}`,
-        });
-      }
-    }
-  }
+  // Recursively find all links in this section
+  // We skip the top-level 'titulo' and 'descricao' to avoid creating self-links from metadata
+  const links = findAllLinks(raw, key, letter.toLowerCase() as LinkKind);
 
   // SECURITY: Validate notes before including
   const notes = isValidString(raw.nota) ? [raw.nota] : undefined;
@@ -565,6 +527,107 @@ function parseSection(
     links,
     notes,
     tags: extractTags(raw),
+  };
+}
+
+/**
+ * Recursively find all links in a raw object/array
+ */
+function findAllLinks(
+  node: unknown, 
+  parentId: string, 
+  defaultKind: LinkKind, 
+  visited = new WeakSet<object>()
+): RegistryLink[] {
+  const links: RegistryLink[] = [];
+
+  if (!node || typeof node !== "object") return links;
+  
+  // Prevent infinite loops in circular structures
+  if (visited.has(node)) return links;
+  visited.add(node);
+
+  // Check if current node is a link itself
+  // We skip the root section object usually, but if it has a direct URL, we take it
+  const link = createLinkFromNode(node as Record<string, unknown>, parentId, defaultKind);
+  if (link) {
+    links.push(link);
+    // If it's a link, we might still want to traverse its children (e.g. if it has nested relevant data)
+    // But usually a "document" node is a leaf in terms of content. 
+    // However, some nodes like "sistema_emendas" might have a url AND children.
+  }
+
+  // Recurse into children
+  if (Array.isArray(node)) {
+    node.forEach((item, index) => {
+      links.push(...findAllLinks(item, `${parentId}-${index}`, defaultKind, visited));
+    });
+  } else {
+    for (const [key, value] of Object.entries(node)) {
+      // Skip metadata keys that we've already handled or shouldn't traverse as content
+      if (["titulo", "descricao", "nota", "tags", "metadata", "encontrado"].includes(key)) continue;
+
+      // Construct a better ID for the child
+      const childId = `${parentId}.${key}`;
+      
+      // Pass the key as context for title inference if needed
+      links.push(...findAllLinks(value, childId, defaultKind, visited));
+    }
+  }
+
+  return links;
+}
+
+/**
+ * Try to create a RegistryLink from a node
+ */
+function createLinkFromNode(
+  node: Record<string, unknown>, 
+  id: string, 
+  defaultKind: LinkKind
+): RegistryLink | null {
+  // 1. Check if it has a URL
+  const url = extractUrlFromObject(node);
+  if (!url) return null;
+
+  // 2. Extract Title
+  // Try explicit title fields first
+  let title = extractTitleFromObject(node);
+  
+  // If no title, try to infer from the ID (which contains the key path)
+  if (!title) {
+    const lastKey = id.split(".").pop() || "";
+    // Humanize the key (e.g. "portal_transparencia" -> "Portal Transparencia")
+    if (lastKey && !lastKey.match(/^\d+$/)) { // Don't use array indices
+       title = lastKey.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    } else {
+      title = "Fonte Oficial";
+    }
+  }
+
+  // 3. Extract Description
+  const description = extractDescriptionFromObject(node);
+
+  // 4. Determine Kind
+  // Use explicit kind if available, else infer from title/id, else default
+  let kind = defaultKind;
+  if (isValidLinkKind(node.kind)) {
+    kind = node.kind;
+  } else {
+    // Try to infer from title or the node's key (part of ID)
+    const contextString = `${id} ${title}`;
+    const inferred = inferLinkKind(id, title) || inferLinkKindFromKey(id);
+    if (inferred !== "other") kind = inferred;
+  }
+
+  return {
+    id,
+    title,
+    url,
+    kind,
+    description,
+    official: node.encontrado !== false && node.status !== "nao_localizado",
+    sourcePath: id,
   };
 }
 
@@ -649,66 +712,7 @@ function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, ga
   }
 }
 
-/**
- * Create a RegistryLink from a raw document object
- * SECURITY: Validates URL and sanitizes all string fields
- */
-function createLinkFromDoc(doc: RawRegistryDocument, id: string, defaultKind: LinkKind): RegistryLink | null {
-  // SECURITY: Validate URL before using
-  const urlCandidate = doc.url || doc.link || doc.href || doc.portal;
-  if (!urlCandidate || !isValidUrl(urlCandidate)) {
-    return null;
-  }
 
-  // SECURITY: Validate and sanitize title
-  let title = "Fonte oficial";
-  if (doc.titulo && isValidString(doc.titulo)) {
-    title = doc.titulo;
-  } else if (doc.nome && isValidString(doc.nome)) {
-    title = doc.nome;
-  } else if (doc.tipo && isValidString(doc.tipo)) {
-    title = doc.tipo;
-  }
-
-  // SECURITY: Validate and sanitize description
-  let description: string | undefined;
-  if (isValidString(doc.descricao)) {
-    description = doc.descricao;
-  } else if (isValidString(doc.conteudo)) {
-    description = doc.conteudo;
-  } else if (isValidString(doc.nota)) {
-    description = doc.nota;
-  } else if (doc.conteudo && typeof doc.conteudo === "object") {
-    // SECURITY: Safely extract object description
-    try {
-      // Check if it's a plain object (not null, not array, not a special object)
-      if (doc.conteudo !== null &&
-          !Array.isArray(doc.conteudo) &&
-          Object.getPrototypeOf(doc.conteudo) === Object.prototype) {
-        const keys = Object.keys(doc.conteudo).slice(0, 3);
-        // Validate each key before using
-        const safeKeys = keys.filter(k => isValidString(k));
-        description = safeKeys.length > 0 ? `Contém: ${safeKeys.join(", ")}` : undefined;
-      }
-    } catch {
-      // If anything goes wrong, just skip the description
-      description = undefined;
-    }
-  }
-
-  // SECURITY: Validate link kind
-  const kind = isValidLinkKind(doc.kind) ? doc.kind : defaultKind;
-
-  return {
-    id,
-    title,
-    url: urlCandidate.trim(),
-    kind,
-    description,
-    official: doc.encontrado !== false,
-    sourcePath: id,
-  };
-}
 
 /**
  * Infer link kind from keywords in title/key
@@ -778,7 +782,7 @@ function inferGapStatus(status: string | boolean | undefined): RegistryGap["stat
  * SECURITY: Validates all URLs before returning
  */
 function extractUrlFromObject(obj: Record<string, unknown>): string | null {
-  const urlCandidate = obj.url || obj.link || obj.href || obj.portal || obj.url_base;
+  const urlCandidate = obj.url || obj.link || obj.href || obj.portal || obj.url_base || obj.portal_base || obj.portal_oficial;
   return isValidUrl(urlCandidate) ? urlCandidate.trim() : null;
 }
 

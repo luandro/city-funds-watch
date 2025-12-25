@@ -6,7 +6,7 @@ export function Header() {
 
   const navItems = [
     { path: "/", label: "Agora", icon: Radio },
-    { path: "/local-spend", label: "Dinheiro", icon: Wallet },
+    { path: "/money", label: "Dinheiro", icon: Wallet },
     { path: "/projects", label: "Obras", icon: HardHat },
     { path: "/services", label: "Serviços", icon: Building2 },
     { path: "/hearings", label: "Audiências", icon: Calendar },

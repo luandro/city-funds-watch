@@ -14,10 +14,8 @@ get_changed_files() {
   fi
 }
 
-changed_files=$(get_changed_files)
-
 docs_only=true
-for file in $changed_files; do
+get_changed_files | while IFS= read -r file; do
   case "$file" in
     *.md|docs/*|README*|.github/*) ;;
     *) docs_only=false; break ;;

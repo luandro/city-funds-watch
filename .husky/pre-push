@@ -1,5 +1,5 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
 get_changed_files() {
   upstream=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)

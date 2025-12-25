@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Landmark, Radio, Wallet, HardHat, Building2, Calendar } from "lucide-react";
+import { Landmark, Radio, Wallet, HardHat, Building2, Calendar, FileText } from "lucide-react";
 
 export function Header() {
   const location = useLocation();
@@ -10,6 +10,7 @@ export function Header() {
     { path: "/projects", label: "Obras", icon: HardHat },
     { path: "/services", label: "Serviços", icon: Building2 },
     { path: "/hearings", label: "Audiências", icon: Calendar },
+    { path: "/sources", label: "Fontes", icon: FileText },
   ];
 
   return (

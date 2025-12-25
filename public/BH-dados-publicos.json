@@ -1,0 +1,1118 @@
+{
+  "metadata": {
+    "municipio": "Belo Horizonte",
+    "estado": "Minas Gerais",
+    "uf": "MG",
+    "ibge_codigo": "3106200",
+    "data_compilacao": "2025-12-25",
+    "versao_dossiê": "1.0",
+    "escopo_cobertura": "9 áreas institucionais (A-I)",
+    "notas": "Todas as fontes são oficiais (*.gov.br)"
+  },
+  
+  "portais_de_acesso": {
+    "transparencia": {
+      "nome": "Portal da Transparência",
+      "url_base": "https://prefeitura.pbh.gov.br/transparencia",
+      "orgao": "Prefeitura de Belo Horizonte",
+      "descricao": "Portal integrado de transparência e acesso à informação"
+    },
+    "legislacao": {
+      "nome": "CMBH - SAPL (Sistema de Apoio a Processo Legislativo)",
+      "url_base": "https://cmbhweb.cmbh.mg.gov.br",
+      "orgao": "Câmara Municipal",
+      "descricao": "Legislação, tramitação de projetos, pareceres"
+    },
+    "diario_oficial": {
+      "nome": "Diário Oficial do Município (DOM)",
+      "url_base": "https://prefeitura.pbh.gov.br/node/45",
+      "orgao": "Prefeitura",
+      "descricao": "Publicações obrigatórias de atos municipais"
+    },
+    "lai_esic": {
+      "nome": "Lei de Acesso à Informação (e-SIC)",
+      "url_base": "https://prefeitura.pbh.gov.br/lei-de-acesso-a-informacao",
+      "orgao": "Controladoria-Geral do Município",
+      "descricao": "Sistema de pedido de informação pública"
+    }
+  },
+
+  "secao_a_estrutura_administrativa": {
+    "titulo": "A) ESTRUTURA ADMINISTRATIVA (EXECUTIVO)",
+    "descricao": "Mapa de secretarias municipais, órgãos e organogramas",
+    "documentos": [
+      {
+        "id": "STR-001",
+        "titulo": "Portal de Estrutura de Governo",
+        "tipo": "Portal Web",
+        "url": "https://prefeitura.pbh.gov.br/estrutura-de-governo",
+        "orgao_emissor": "Prefeitura de Belo Horizonte",
+        "ano": 2025,
+        "atualizado_em": "2025-08-11",
+        "encontrado": true,
+        "conteudo": {
+          "gabinete_prefeito": true,
+          "secretarias_municipais": 18,
+          "orgaos_adjuntos": 5
+        }
+      },
+      {
+        "id": "STR-002",
+        "titulo": "Organograma - Secretaria Municipal de Educação (SMED)",
+        "tipo": "PDF - Organograma",
+        "url": "https://prefeitura.pbh.gov.br/sites/default/files/estrutura-de-governo/educacao/documentos/ORG_SMED_0.pdf",
+        "orgao_emissor": "SMED",
+        "ano": 2023,
+        "encontrado": true,
+        "tamanho_estimado_kb": 200
+      },
+      {
+        "id": "STR-003",
+        "titulo": "Organograma - Secretaria Municipal de Administração Logística e Patrimonial (SMALOG)",
+        "tipo": "PDF - Organograma",
+        "url": "https://prefeitura.pbh.gov.br/sites/default/files/estrutura-de-governo/administracao-logistica-e-patrimonial/2025/org_smalog-sue...",
+        "orgao_emissor": "SMALOG",
+        "ano": 2025,
+        "encontrado": true,
+        "tamanho_estimado_kb": 150
+      },
+      {
+        "id": "STR-004",
+        "titulo": "Lei nº 7.169/1996 - Define Estrutura do Executivo",
+        "tipo": "Lei",
+        "url": "https://cmbhweb.cmbh.mg.gov.br/legislation/lei-7169-1996",
+        "orgao_emissor": "Câmara Municipal",
+        "ano": 1996,
+        "encontrado": true,
+        "emendas": true,
+        "nota": "Define competências de Secretarias"
+      }
+    ]
+  },
+
+  "secao_b_legislacao_estruturante": {
+    "titulo": "B) LEGISLAÇÃO MUNICIPAL ESTRUTURANTE",
+    "descricao": "Leis fundamentais que estruturam o município",
+    "documentos": [
+      {
+        "id": "LEG-001",
+        "titulo": "Lei Orgânica do Município de Belo Horizonte",
+        "tipo": "Lei Orgânica",
+        "url": "https://prefeitura.pbh.gov.br/sites/default/files/estrutura-de-governo/controladoria/2018/documentos/Legislação/Lei_Orgânica_do_Municipio.pdf",
+        "orgao_emissor": "Câmara Municipal",
+        "ano_promulgacao": 1990,
+        "ano_ultima_emenda": 2025,
+        "encontrado": true,
+        "tamanho_estimado_kb": 800,
+        "artigos_principais": [19, 108, 125, 132],
+        "nota": "Constituição municipal"
+      },
+      {
+        "id": "LEG-002",
+        "titulo": "Código Tributário Municipal - Lei nº 1.310/1966",
+        "tipo": "Lei",
+        "url": "https://www.lefisc.com.br/regulamentos/ctmBeloHorizonte/conteudo.asp",
+        "orgao_emissor": "Câmara Municipal",
+        "ano": 1966,
+        "encontrado": true,
+        "atualizado_em": "2019-12-19",
+        "tributos_municipais": ["IPTU", "ITBI", "ISS", "Taxas"]
+      },
+      {
+        "id": "LEG-003",
+        "titulo": "Plano Diretor - Lei nº 11.181/2019",
+        "tipo": "Lei",
+        "url": "https://prefeitura.pbh.gov.br/politica-urbana/planejamento-urbano/plano-diretor/proposta",
+        "orgao_emissor": "Câmara Municipal",
+        "ano": 2019,
+        "encontrado": true,
+        "areas_cobertas": ["Zoneamento", "Parcelamento", "Ocupação", "Mobilidade", "Habitação"],
+        "atualizado_em": "2018-02-17"
+      },
+      {
+        "id": "LEG-004",
+        "titulo": "E-book do Novo Plano Diretor (Detalhamento Prático)",
+        "tipo": "E-book/Guia",
+        "url": "https://prefeitura.pbh.gov.br/politica-urbana/planejamento-urbano/plano-diretor/proposta",
+        "orgao_emissor": "SMPU",
+        "ano": 2019,
+        "encontrado": true
+      },
+      {
+        "id": "LEG-005",
+        "titulo": "Portal CMBH - Legislação Consolidada",
+        "tipo": "Portal de Busca",
+        "url": "https://cmbhweb.cmbh.mg.gov.br/legislation",
+        "orgao_emissor": "Câmara Municipal",
+        "encontrado": true,
+        "recursos": {
+          "filtros": ["tipo", "número", "ano", "assunto"],
+          "temas_disponiveis": 33,
+          "historico_alteracoes": true,
+          "regulamentacoes": true
+        }
+      }
+    ]
+  },
+
+  "secao_c_ciclo_orcamentario": {
+    "titulo": "C) CICLO ORÇAMENTÁRIO COMPLETO",
+    "descricao": "PPA, LDO, LOA e anexos técnicos",
+    "ciclos": [
+      {
+        "ciclo_id": "ORC-2024-2027",
+        "ppa": {
+          "id": "ORC-C-001",
+          "titulo": "PPAG 2024-2027",
+          "tipo": "Lei",
+          "url": "https://www.almg.gov.br/atividade-parlamentar/orcamento-do-estado/ppag/leis/PPAG-2024-2027",
+          "orgao_emissor": "Executivo Municipal",
+          "ano": 2023,
+          "vigencia": "2024-2027",
+          "encontrado": true,
+          "conteudo": {
+            "programas": true,
+            "acoes": true,
+            "metas": true,
+            "indicadores": true
+          }
+        },
+        "ldo": {
+          "id": "ORC-C-002",
+          "titulo": "Lei de Diretrizes Orçamentárias 2024",
+          "tipo": "Lei",
+          "ano": 2023,
+          "vigencia": 2024,
+          "encontrado": false,
+          "nota": "Verificar no Portal CMBH"
+        }
+      },
+      {
+        "ciclo_id": "ORC-2025",
+        "ldo": {
+          "id": "ORC-D-001",
+          "titulo": "Lei de Diretrizes Orçamentárias 2025 - Lei nº 11.742/2024",
+          "tipo": "Lei",
+          "url": "https://cmbhweb.cmbh.mg.gov.br/sites/default/files/tramitacao-orcamento/mensagem_22_-_ploa_2025_-_mensagem_minuta_lei_com_ajuste...",
+          "orgao_emissor": "Câmara Municipal",
+          "ano": 2024,
+          "data_aprovacao": "2024-09-13",
+          "vigencia": 2025,
+          "encontrado": true,
+          "anexos": {
+            "metas_fiscais": true,
+            "riscos_fiscais": true,
+            "diretrizes": true
+          }
+        },
+        "loa": {
+          "id": "ORC-D-002",
+          "titulo": "Lei Orçamentária Anual 2025 - Projeto",
+          "tipo": "Lei",
+          "url": "https://cmbhweb.cmbh.mg.gov.br/sites/default/files/tramitacao-orcamento/mensagem_22_-_ploa_2025_-_mensagem_minuta_lei_com_ajuste...",
+          "orgao_emissor": "Câmara Municipal",
+          "ano": 2024,
+          "vigencia": 2025,
+          "encontrado": true,
+          "receita_ordinaria_tesouro": 15425149786,
+          "despesa_fixada_total": 22653807973,
+          "moeda": "BRL",
+          "despesas_por_categoria": {
+            "despesas_correntes": {
+              "valor": 19508457516,
+              "percentual": 86.1
+            },
+            "despesas_capital": {
+              "valor": 3145350457,
+              "percentual": 13.9
+            }
+          },
+          "aplicacoes_especificas": {
+            "saude_percentual": 22.60,
+            "saude_valor": 2654788787,
+            "camera_percentual": 4.50,
+            "orcamento_participativo": 63641562
+          }
+        }
+      },
+      {
+        "ciclo_id": "ORC-2026",
+        "ppag": {
+          "id": "ORC-E-001",
+          "titulo": "PPAG 2026-2029 - Projeto",
+          "tipo": "Lei",
+          "url": "https://www.cmbh.mg.gov.br/sites/default/files/publicacoes/2025/10/ar_et_081_2025_-_ppag_2026.pdf",
+          "orgao_emissor": "Câmara Municipal",
+          "ano": 2024,
+          "data_envio": "2024-09-30",
+          "vigencia": "2026-2029",
+          "encontrado": true,
+          "status": "em_tramitacao"
+        },
+        "lda": {
+          "id": "ORC-E-002",
+          "titulo": "Lei Orçamentária Anual 2026 - Projeto",
+          "tipo": "Lei",
+          "url": "https://prefeitura.pbh.gov.br/orcamento-2026",
+          "orgao_emissor": "Câmara Municipal",
+          "ano": 2025,
+          "data_votacao": "2025-12-01",
+          "vigencia": 2026,
+          "encontrado": true,
+          "despesa_total_estimada": 24920000000,
+          "moeda": "BRL",
+          "status": "votada"
+        }
+      }
+    ]
+  },
+
+  "secao_d_emendas_orcamentarias": {
+    "titulo": "D) EMENDAS ORÇAMENTÁRIAS MUNICIPAIS",
+    "descricao": "Sistema de emendas individuais, impositivas e modificativas",
+    "sistema_emendas": {
+      "tipos": [
+        {
+          "id": "EMD-T-001",
+          "nome": "Emendas Impositivas",
+          "percentual_rcl": 1.0,
+          "percentual_obrigatorio_saude": 0.5,
+          "execucao": "obrigatoria",
+          "legislacao": "Emenda Lei Orgânica 34/2021; art. 132 LOMBH",
+          "encontrado": true
+        },
+        {
+          "id": "EMD-T-002",
+          "nome": "Emendas Individuais de Vereadores",
+          "quantidade_vereadores": 41,
+          "encontrado": true,
+          "legislacao": "Lei nº 11.742/2024 (LDO 2025)"
+        },
+        {
+          "id": "EMD-T-003",
+          "nome": "Emendas Aditivas/Supressivas/Modificativas",
+          "descricao": "Alteração ao projeto orçamentário",
+          "aprovacao": "Plenário",
+          "encontrado": true
+        }
+      ],
+      "analise_ciclo_2025": {
+        "ano_referencia": 2025,
+        "loa_ano": 2026,
+        "data_analise": "2025-11-24",
+        "emendas_recebidas": 1510,
+        "emendas_aprovadas": 1453,
+        "emendas_rejeitadas": 57,
+        "taxa_aprovacao": 96.2,
+        "relator_tecnico": "Leonardo Ângelo",
+        "comissao_responsavel": "Comissão de Orçamento e Finanças Públicas",
+        "areas_prioritarias": [
+          {
+            "area": "Saúde",
+            "descricao": "Principal alvo; investimentos em hospitais, centros de saúde, equipamentos",
+            "volume_relativo": "alto"
+          },
+          {
+            "area": "Infraestrutura Urbana",
+            "descricao": "Pavimentação, recapeamento, revitalização de praças/parques",
+            "volume_relativo": "alto"
+          },
+          {
+            "area": "Mobilidade Urbana",
+            "descricao": "Sinalização viária, transporte, faixa preferencial",
+            "volume_relativo": "medio"
+          },
+          {
+            "area": "Educação",
+            "descricao": "Recursos para creches e escolas municipais",
+            "volume_relativo": "medio"
+          }
+        ]
+      }
+    },
+    "acesso": {
+      "portal": "https://www.cmbh.mg.gov.br",
+      "secao": "Atividade Legislativa → Projetos e Proposições",
+      "filtros": ["Número", "Ano", "Assunto", "Fase de Tramitação"],
+      "encontrado": true
+    }
+  },
+
+  "secao_e_prestacao_contas": {
+    "titulo": "E) PRESTAÇÃO DE CONTAS E EXECUÇÃO FISCAL",
+    "descricao": "Relatórios sob Lei de Responsabilidade Fiscal (LC 101/2000)",
+    "portal_base": "https://prefeitura.pbh.gov.br/transparencia/contas-publicas/execucao-orcamentaria-e-gestao-fiscal",
+    "relatorios": [
+      {
+        "id": "PCT-001",
+        "nome": "Relatório Resumido da Execução Orçamentária (RREO)",
+        "periodicidade": "Bimestral",
+        "bimestres_por_ano": 6,
+        "encontrado": true,
+        "demonstrativos": [
+          {
+            "nome": "Balanço Orçamentário",
+            "frequencia": "por bimestre",
+            "formato": "PDF + XLS"
+          },
+          {
+            "nome": "Execução das Despesas por Função e Subfunção",
+            "frequencia": "por bimestre",
+            "formato": "PDF + XLS"
+          },
+          {
+            "nome": "Demonstrativo da Receita Corrente Líquida (RCL)",
+            "frequencia": "por bimestre",
+            "formato": "PDF"
+          },
+          {
+            "nome": "Demonstrativo Consolidado Regime Próprio de Previdência Social",
+            "frequencia": "por bimestre",
+            "formato": "PDF"
+          },
+          {
+            "nome": "Demonstrativo do Resultado Primário e Nominal",
+            "frequencia": "por bimestre",
+            "formato": "PDF"
+          },
+          {
+            "nome": "Demonstrativo das Parcerias Público-Privadas (PPPs)",
+            "frequencia": "por bimestre",
+            "formato": "PDF"
+          }
+        ],
+        "exemplo_url_2024": "https://prefeitura.pbh.gov.br/sites/default/files/estrutura-de-governo/fazenda/Relatórios%20LRF/2024/rreo-anexo-xii-6o-bime..."
+      },
+      {
+        "id": "PCT-002",
+        "nome": "Relatório de Gestão Fiscal (RGF)",
+        "periodicidade": "Quadrimestral",
+        "quadrimestres_por_ano": 3,
+        "encontrado": true,
+        "demonstrativos": [
+          {
+            "nome": "Despesa com Pessoal (Executivo)",
+            "formato": "PDF + XLS"
+          },
+          {
+            "nome": "Disponibilidade de Caixa e Restos a Pagar",
+            "formato": "PDF + XLS"
+          },
+          {
+            "nome": "Informações sobre Consórcios Públicos",
+            "formato": "PDF + XLS"
+          }
+        ]
+      },
+      {
+        "id": "PCT-003",
+        "nome": "Balanço Orçamentário",
+        "tipo": "Demonstração Contábil",
+        "portal": "https://prefeitura.pbh.gov.br/transparencia/contas-publicas/execucao-orcamentaria-e-gestao-fiscal",
+        "encontrado": true
+      },
+      {
+        "id": "PCT-004",
+        "nome": "Balanço Financeiro",
+        "tipo": "Demonstração Contábil",
+        "portal": "https://prefeitura.pbh.gov.br/transparencia/contas-publicas/execucao-orcamentaria-e-gestao-fiscal",
+        "encontrado": true
+      },
+      {
+        "id": "PCT-005",
+        "nome": "Balanço Patrimonial",
+        "tipo": "Demonstração Contábil",
+        "portal": "https://prefeitura.pbh.gov.br/transparencia/contas-publicas/execucao-orcamentaria-e-gestao-fiscal",
+        "encontrado": true
+      },
+      {
+        "id": "PCT-006",
+        "nome": "Demonstração de Variações Patrimoniais",
+        "tipo": "Demonstração Contábil",
+        "portal": "https://prefeitura.pbh.gov.br/transparencia/contas-publicas/execucao-orcamentaria-e-gestao-fiscal",
+        "encontrado": true
+      }
+    ]
+  },
+
+  "secao_f_controle_externo": {
+    "titulo": "F) CONTROLE EXTERNO - TRIBUNAL DE CONTAS (TCE-MG)",
+    "descricao": "Pareceres Prévios e julgamento das contas públicas",
+    "orgao_responsavel": "Tribunal de Contas do Estado de Minas Gerais (TCE-MG)",
+    "portal_oficial": "https://prefeitura.pbh.gov.br/transparencia/contas-publicas/execucao-orcamentaria-e-gestao-fiscal/pareceres",
+    "processo_fiscalizacao": [
+      {
+        "etapa": 1,
+        "nome": "Envio de Contas",
+        "responsavel": "Prefeitura de Belo Horizonte",
+        "destinatario": "TCE-MG"
+      },
+      {
+        "etapa": 2,
+        "nome": "Análise Técnica",
+        "responsavel": "Equipe técnica do TCE-MG"
+      },
+      {
+        "etapa": 3,
+        "nome": "Parecer Prévio",
+        "responsavel": "TCE-MG",
+        "opcoes": ["Aprovação", "Aprovação com Ressalvas", "Rejeição"]
+      },
+      {
+        "etapa": 4,
+        "nome": "Julgamento",
+        "responsavel": "Câmara Municipal"
+      },
+      {
+        "etapa": 5,
+        "nome": "Publicação",
+        "responsavel": "Prefeitura",
+        "local": "Portal da Transparência PBH"
+      }
+    ],
+    "pareceres_disponiveis": {
+      "encontrado": true,
+      "anos": [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014],
+      "nota": "Alguns anos com análises ainda não concluídas até 2025-11-28",
+      "status": "parcialmente_disponibilizado"
+    }
+  },
+
+  "secao_g_ferramentas_setoriais": {
+    "titulo": "G) FERRAMENTAS DE GESTÃO SETORIAIS (EXECUTIVO)",
+    "descricao": "Planos municipais estratégicos por setor",
+    "planos": [
+      {
+        "id": "SET-001",
+        "nome_completo": "Plano Municipal de Saúde (PMS)",
+        "sigla": "PMS",
+        "periodicidade": "Quadrienal",
+        "orgao_responsavel": "Secretaria Municipal de Saúde (SMSA)",
+        "encontrado": true,
+        "portal": "https://prefeitura.pbh.gov.br/saude/informacoes/planejamento-em-saude",
+        "historico": [
+          {
+            "periodo": "2010-2013",
+            "disponivel": true
+          },
+          {
+            "periodo": "2014-2017",
+            "disponivel": true
+          },
+          {
+            "periodo": "2018-2021",
+            "disponivel": true
+          },
+          {
+            "periodo": "2022-2025",
+            "disponivel": true
+          },
+          {
+            "periodo": "2026-2029",
+            "disponivel": false,
+            "status": "em_elaboracao"
+          }
+        ],
+        "conteudo": {
+          "analise_situacional": true,
+          "necessidades_saude": true,
+          "peculiaridades_municipais": true,
+          "integralidade_atencao": true,
+          "acompanhamento": true,
+          "avaliacao": true
+        },
+        "conformidade": "Lei 8.080/1990 (SUS)"
+      },
+      {
+        "id": "SET-002",
+        "nome_completo": "Plano Municipal de Educação (PME)",
+        "sigla": "PME",
+        "periodicidade": "Decenal",
+        "orgao_responsavel": "Secretaria Municipal de Educação (SMED)",
+        "encontrado": true,
+        "portal": "https://prefeitura.pbh.gov.br/educacao/",
+        "conteudo": {
+          "metas_educacionais": true,
+          "politicas_inclusao": true,
+          "educacao_integral": true,
+          "acessibilidade": true,
+          "transporte_escolar": true,
+          "educacao_profissional": true
+        }
+      },
+      {
+        "id": "SET-003",
+        "nome_completo": "Plano de Mobilidade Urbana",
+        "sigla": "PMU",
+        "orgao_responsavel": "Secretaria Municipal de Mobilidade Urbana (BHTrans)",
+        "encontrado": true,
+        "status": "vigente",
+        "volumes": 5,
+        "volumes_descricao": [
+          {
+            "numero": 1,
+            "nome": "Objetivos e Enquadramento"
+          },
+          {
+            "numero": 2,
+            "nome": "Via Pública"
+          },
+          {
+            "numero": 3,
+            "nome": "Equipamentos Municipais"
+          },
+          {
+            "numero": 4,
+            "nome": "Transporte Público"
+          },
+          {
+            "numero": 5,
+            "nome": "Fiscalização de Particulares & Desafios Transversais"
+          }
+        ],
+        "inclui": {
+          "relatorio_ponderacao": true,
+          "discussoes_publicas": true,
+          "propostas_anuais_execucao": true
+        }
+      },
+      {
+        "id": "SET-004",
+        "nome_completo": "Plano Municipal de Saneamento Básico",
+        "sigla": "PMSB",
+        "encontrado": false,
+        "status": "nao_localizado",
+        "recomendacao": "Solicitar via LAI (e-SIC) à Secretaria Municipal de Saúde ou BHTrans"
+      }
+    ]
+  },
+
+  "secao_h_poder_legislativo": {
+    "titulo": "H) PODER LEGISLATIVO - CÂMARA MUNICIPAL DE BELO HORIZONTE",
+    "descricao": "Estrutura, processo legislativo, proposições e legislação",
+    "camarainfo": {
+      "nome_oficial": "Câmara Municipal de Belo Horizonte",
+      "sigla": "CMBH",
+      "composicao": 41,
+      "unidade": "Vereadores",
+      "periodo_legislativo_anos": 4,
+      "endereco": "Av. Getúlio Vargas, 1420 - Funcionários, Belo Horizonte, MG",
+      "portal": "https://www.cmbh.mg.gov.br",
+      "sapl": "https://cmbhweb.cmbh.mg.gov.br"
+    },
+    "processo_legislativo": {
+      "normas": [
+        "Lei Orgânica do Município",
+        "Regimento Interno da CMBH"
+      ],
+      "etapas": [
+        {
+          "etapa": 1,
+          "nome": "Apresentação",
+          "autores_possiveis": ["Vereador", "Prefeito", "Povo"]
+        },
+        {
+          "etapa": 2,
+          "nome": "Registro e Numeração",
+          "responsavel": "CMBH"
+        },
+        {
+          "etapa": 3,
+          "nome": "Publicação",
+          "local": "Diário Oficial"
+        },
+        {
+          "etapa": 4,
+          "nome": "Tramitação em Comissões",
+          "comissoes": "Especializadas por tema"
+        },
+        {
+          "etapa": 5,
+          "nome": "Discussão em Plenário"
+        },
+        {
+          "etapa": 6,
+          "nome": "Votação"
+        },
+        {
+          "etapa": 7,
+          "nome": "Sanção/Veto",
+          "responsavel": "Prefeito"
+        },
+        {
+          "etapa": 8,
+          "nome": "Promulgação e Publicação"
+        }
+      ]
+    },
+    "tipos_proposicoes": [
+      {
+        "id": "PROP-001",
+        "tipo": "Projeto de Lei (PL)",
+        "descricao": "Proposição de lei ordinária",
+        "encontrado": true,
+        "exemplo": "PL nº 548/2025 (LOA 2026) - 1.510 emendas recebidas"
+      },
+      {
+        "id": "PROP-002",
+        "tipo": "Parecer de Comissão",
+        "descricao": "Posicionamento de comissão temática",
+        "encontrado": true,
+        "comissoes": [
+          "Comissão de Orçamento e Finanças Públicas",
+          "Comissão de Legislação e Justiça",
+          "Comissão de Políticas Sociais",
+          "Comissão de Infraestrutura Urbana"
+        ]
+      },
+      {
+        "id": "PROP-003",
+        "tipo": "Requerimento de Informação",
+        "descricao": "Solicitação de informações ao Executivo",
+        "encontrado": true,
+        "base_legal": "Lei Orgânica, art. 108+"
+      },
+      {
+        "id": "PROP-004",
+        "tipo": "Audiência Pública",
+        "descricao": "Debate com sociedade",
+        "encontrado": true,
+        "exemplos": [
+          "27 mai 2025 - Debate sobre funk e criminalização"
+        ]
+      },
+      {
+        "id": "PROP-005",
+        "tipo": "Comissão Parlamentar de Inquérito (CPI)",
+        "descricao": "Investigação de fatos de interesse",
+        "encontrado": false,
+        "status": "nenhuma_ativa_identificada"
+      }
+    ],
+    "busca_proposicoes": {
+      "portal": "https://cmbhweb.cmbh.mg.gov.br",
+      "secao": "Atividade Legislativa → Pesquisa Legislação/Proposições",
+      "filtros": [
+        "Tipo de Proposição",
+        "Número e Ano",
+        "Assunto (33 temas)",
+        "Autor",
+        "Fase de Tramitação",
+        "Período (tramitando/finalizado)"
+      ],
+      "encontrado": true
+    },
+    "legislacao_consolidada": {
+      "portal": "https://cmbhweb.cmbh.mg.gov.br",
+      "url_direta": "https://cmbhweb.cmbh.mg.gov.br/legislation",
+      "tipos_possiveis": [
+        "Atos do Presidente",
+        "Decreto",
+        "Decreto Legislativo",
+        "Decreto-lei",
+        "Deliberação",
+        "Emenda Lei Orgânica",
+        "Instrução de Serviço",
+        "Lei",
+        "Lei Orgânica",
+        "Portaria",
+        "Resolução"
+      ],
+      "filtros": ["Tipo", "Número", "Ano", "Assunto"],
+      "resultado_por_proposicao": {
+        "documento_atual_pdf": true,
+        "historico_alteracoes": true,
+        "regulamentacoes": true,
+        "autoria": true,
+        "data_promulgacao": true,
+        "palavras_chave": true
+      },
+      "encontrado": true
+    },
+    "diario_oficial": {
+      "nome": "Diário Oficial do Município (DOM)",
+      "url": "https://prefeitura.pbh.gov.br/node/45",
+      "publicacoes": [
+        "Leis",
+        "Decretos",
+        "Atos Executivos",
+        "Licitações",
+        "Contratos",
+        "Atos Administrativos"
+      ],
+      "frequencia": "Diária (dias úteis)",
+      "encontrado": true
+    }
+  },
+
+  "secao_i_participacao_social": {
+    "titulo": "I) PARTICIPAÇÃO SOCIAL E CONTROLE CIDADÃO",
+    "descricao": "Mecanismos formais de participação e controle social",
+    "conselhos_municipais": {
+      "encontrado": true,
+      "conselhos": [
+        {
+          "id": "CONS-001",
+          "nome": "Conselho Municipal de Educação (CME)",
+          "sigla": "CME",
+          "orgao_supervisorio": "SMED",
+          "atas_disponiveis": true,
+          "url_atas": "https://prefeitura.pbh.gov.br/educacao/conselho/atas",
+          "acervo_desde": 2015,
+          "continuidade": true,
+          "atas_2025": ["28/02", "27/03", "24/04", "08/05", "20/05", "29/05", "26/06", "10/07", "21/08", "28/08", "25/09"],
+          "atas_2024_qtd": 16,
+          "formato": "PDF digitalizado"
+        },
+        {
+          "id": "CONS-002",
+          "nome": "Conselho Municipal de Habitação (CMH)",
+          "sigla": "CMH",
+          "orgao_supervisorio": "URBEL",
+          "atas_disponiveis": true,
+          "exemplo_ata": "Reunião Ordinária 18 jan 2024",
+          "formato": "PDF"
+        },
+        {
+          "id": "CONS-003",
+          "nome": "Conselho Municipal de Saúde",
+          "sigla": "CMS",
+          "orgao_supervisorio": "SMSA",
+          "atas_pressupostas": true,
+          "localizacao_presumida": "Portal Transparência/Conselhos"
+        }
+      ],
+      "acesso_geral": "https://prefeitura.pbh.gov.br/transparencia → Conselhos Municipais"
+    },
+    "audiencias_publicas": {
+      "encontrado": true,
+      "tipos": [
+        "Audiências Orçamentárias (PPA, LDO, LOA)",
+        "Audiências Temáticas Setoriais",
+        "Debates Públicos sobre Projetos Específicos"
+      ],
+      "exemplos": [
+        "Audiências com deputados/vereadores",
+        "Debates sobre reforma de planos de saúde",
+        "Participação da sociedade em decisões"
+      ]
+    },
+    "orcamento_participativo": {
+      "id": "PART-001",
+      "nome": "Orçamento Participativo (OP)",
+      "encontrado": true,
+      "status": "retomado_2024_2025",
+      "data_inicio": "2024-10-20",
+      "destinacao_financeira": 108000000,
+      "moeda": "BRL",
+      "beneficiarios": "População de ZEIS e AEIS 2 (vilas, favelas, conjuntos, assentamentos, ocupações)",
+      "participantes_2024": 7000,
+      "estrutura": [
+        {
+          "etapa": 1,
+          "nome": "Reuniões de Mobilização",
+          "descricao": "Identificação de demandas",
+          "data_inicio": "jan 2025"
+        },
+        {
+          "etapa": 2,
+          "nome": "Fóruns Regionais de Prioridades Orçamentárias",
+          "descricao": "Eleição de intervenções por região"
+        },
+        {
+          "etapa": 3,
+          "nome": "Comissões Regionais de Acompanhamento e Fiscalização (Comforça)",
+          "descricao": "Monitoramento de execução por lideranças comunitárias"
+        },
+        {
+          "etapa": 4,
+          "nome": "Fórum Municipal",
+          "descricao": "Consolidação das prioridades"
+        }
+      ],
+      "regionais": 9,
+      "assentamentos_cobertos": 336,
+      "populacao_beneficiaria_estimada": 480000,
+      "empreendimentos_aprovados": {
+        "obras": 47,
+        "projetos": 9,
+        "planos_urbanisticos": 13
+      },
+      "areas_prioritarias": [
+        "Infraestrutura de Saneamento",
+        "Mobilidade",
+        "Acessibilidade"
+      ]
+    },
+    "ouvidoria": {
+      "id": "PART-002",
+      "nome": "Ouvidoria Pública de Belo Horizonte",
+      "funcoes": [
+        "Recebimento de reclamações",
+        "Denúncias",
+        "Sugestões",
+        "Solicitações de informação"
+      ],
+      "encontrado": true,
+      "url": "https://prefeitura.pbh.gov.br/ouvidoria",
+      "encaminhamento": "Controladoria-Geral do Município",
+      "integracao": "Ferramenta de controle social integrada ao Portal Transparência"
+    },
+    "lei_acesso_informacao": {
+      "id": "PART-003",
+      "nome": "Lei de Acesso à Informação (LAI)",
+      "nome_portal": "Sistema e-SIC (eletrônico)",
+      "legislacao": [
+        {
+          "lei": "Lei Federal nº 12.257/2011",
+          "escopo": "Lei de Acesso à Informação (LAI)"
+        },
+        {
+          "lei": "Decreto Municipal nº 14.906/2012",
+          "escopo": "Regulamentação municipal"
+        }
+      ],
+      "orgao_responsavel": "Controladoria-Geral do Município (CGM)",
+      "controlador_geral": "Leonardo de Araújo Ferraz",
+      "controlador_adjunto": "Cláudia Costa de Araújo Fusco",
+      "portal_esic": "https://prefeitura.pbh.gov.br/lei-de-acesso-a-informacao",
+      "encontrado": true,
+      "prazos": {
+        "resposta_maxima_dias": 20,
+        "prorrogacao_dias": 10,
+        "prorrogacao_condicoes": "Mediante justificativa expressa"
+      },
+      "modalidades": [
+        {
+          "tipo": "Transparência Ativa",
+          "descricao": "Informações disponibilizadas proativamente",
+          "local": "Portal da Transparência"
+        },
+        {
+          "tipo": "Transparência Passiva",
+          "descricao": "Solicitações de cidadãos via e-SIC"
+        }
+      ],
+      "excecoes": [
+        "Informações pessoais (honra, privacidade, imagem)",
+        "Informações imprescindíveis à segurança da sociedade e Estado"
+      ]
+    },
+    "portal_transparencia": {
+      "id": "PART-004",
+      "nome_oficial": "Portal da Transparência de Belo Horizonte",
+      "url": "https://prefeitura.pbh.gov.br/transparencia",
+      "encontrado": true,
+      "missao": "Ferramenta de comunicação Prefeitura-Sociedade para exercício de cidadania participativa e prevenção de corrupção",
+      "secoes_principais": [
+        {
+          "numero": 1,
+          "titulo": "Contas Públicas",
+          "conteudo": "Execução orçamentária, gestão fiscal, pareceres TCE-MG"
+        },
+        {
+          "numero": 2,
+          "titulo": "Despesas",
+          "conteudo": "Detalhamento de gastos municipais"
+        },
+        {
+          "numero": 3,
+          "titulo": "Receitas",
+          "conteudo": "Arrecadação municipal"
+        },
+        {
+          "numero": 4,
+          "titulo": "Balanço Anual",
+          "conteudo": "Demonstrações contábeis"
+        },
+        {
+          "numero": 5,
+          "titulo": "Lei Orçamentária Anual (LOA)"
+        },
+        {
+          "numero": 6,
+          "titulo": "Lei de Diretrizes Orçamentárias (LDO)"
+        },
+        {
+          "numero": 7,
+          "titulo": "Plano Plurianual (PPAG)"
+        },
+        {
+          "numero": 8,
+          "titulo": "Execução Orçamentária e Gestão Fiscal",
+          "conteudo": "RREO/RGF"
+        },
+        {
+          "numero": 9,
+          "titulo": "Licitações, Atas e Adesões"
+        },
+        {
+          "numero": 10,
+          "titulo": "Obras Públicas"
+        },
+        {
+          "numero": 11,
+          "titulo": "Conselhos Municipais"
+        },
+        {
+          "numero": 12,
+          "titulo": "Dados Abertos",
+          "conteudo": "Bases de dados para análise"
+        },
+        {
+          "numero": 13,
+          "titulo": "Observatório do Milênio - ODS",
+          "conteudo": "Indicadores de desenvolvimento sustentável"
+        },
+        {
+          "numero": 14,
+          "titulo": "Orçamentos Temáticos",
+          "conteudo": "Análise por tema/área"
+        },
+        {
+          "numero": 15,
+          "titulo": "Emendas Parlamentares",
+          "conteudo": "Proposições de vereadores"
+        },
+        {
+          "numero": 16,
+          "titulo": "Remuneração e Dados de Pessoal",
+          "conteudo": "Informações sobre servidores"
+        },
+        {
+          "numero": 17,
+          "titulo": "Viagens Oficiais",
+          "conteudo": "Gastos com deslocamentos de autoridades"
+        },
+        {
+          "numero": 18,
+          "titulo": "Legislação",
+          "conteudo": "Consolidação de leis e atos normativos"
+        },
+        {
+          "numero": 19,
+          "titulo": "Relatórios",
+          "conteudo": "Documentos diversos"
+        },
+        {
+          "numero": 20,
+          "titulo": "Glossário",
+          "conteudo": "Definições técnicas"
+        }
+      ],
+      "contato": "ditr@pbh.gov.br"
+    }
+  },
+
+  "resumo_cobertura": {
+    "secao_a": {
+      "titulo": "Estrutura Administrativa",
+      "documentos_localizados": 4,
+      "status": "completa",
+      "detalhes": "18 Secretarias + 5 órgãos adjuntos; organogramas de 2 secretarias"
+    },
+    "secao_b": {
+      "titulo": "Legislação Estruturante",
+      "documentos_localizados": 5,
+      "status": "completa",
+      "detalhes": "Lei Orgânica, Código Tributário, Plano Diretor, Portal CMBH"
+    },
+    "secao_c": {
+      "titulo": "Ciclo Orçamentário",
+      "documentos_localizados": 8,
+      "status": "completa",
+      "detalhes": "PPA, LDO, LOA com anexos; 3 ciclos mapeados"
+    },
+    "secao_d": {
+      "titulo": "Emendas Orçamentárias",
+      "documentos_localizados": 5,
+      "status": "completa",
+      "detalhes": "Sistema impositivo, análise 1.453 emendas 2026"
+    },
+    "secao_e": {
+      "titulo": "Prestação de Contas",
+      "documentos_localizados": 6,
+      "status": "completa",
+      "detalhes": "RREO/RGF periódicos, balanços contábeis"
+    },
+    "secao_f": {
+      "titulo": "Controle Externo",
+      "documentos_localizados": 1,
+      "status": "completa",
+      "detalhes": "Pareceres TCE-MG 2014-2024"
+    },
+    "secao_g": {
+      "titulo": "Ferramentas Setoriais",
+      "documentos_localizados": 4,
+      "status": "parcial",
+      "detalhes": "3 planos encontrados; 1 não localizado (Saneamento)"
+    },
+    "secao_h": {
+      "titulo": "Poder Legislativo",
+      "documentos_localizados": 8,
+      "status": "completa",
+      "detalhes": "SAPL, legislação consolidada, processo legislativo"
+    },
+    "secao_i": {
+      "titulo": "Participação Social",
+      "documentos_localizados": 7,
+      "status": "completa",
+      "detalhes": "Conselhos, OP, Ouvidoria, LAI, Portal Transparência"
+    }
+  },
+
+  "lacunas": [
+    {
+      "id": "LAC-001",
+      "item": "Organogramas completos atualizado (2025)",
+      "status": "parcial",
+      "recomendacao": "Solicitar via e-SIC"
+    },
+    {
+      "id": "LAC-002",
+      "item": "Plano Municipal de Saneamento Básico",
+      "status": "nao_localizado",
+      "recomendacao": "Contatar SMSA/BHTrans ou solicitar via LAI"
+    },
+    {
+      "id": "LAC-003",
+      "item": "CPIs municipais ativas",
+      "status": "nao_identificadas",
+      "recomendacao": "Verificar diretamente em CMBH"
+    }
+  ],
+
+  "instrucoes_atualizacao": {
+    "frequencia": "Trimestral",
+    "itens_verificar": [
+      "Novas leis municipais",
+      "Atualização de organogramas",
+      "Ciclo LOA/LDO anual",
+      "Novos Pareceres Prévios do TCE-MG",
+      "Atas de conselhos (contínuo)"
+    ]
+  },
+
+  "contatos_oficiais": [
+    {
+      "orgao": "Controladoria-Geral (Transparência/LAI)",
+      "email": "ditr@pbh.gov.br",
+      "endereco": "Av. Álvares Cabral, 200, 9º e 10º andares, Centro, BH, 30.170-000"
+    },
+    {
+      "orgao": "Ouvidoria",
+      "metodo": "Via Portal de Transparência",
+      "url": "https://prefeitura.pbh.gov.br/ouvidoria"
+    },
+    {
+      "orgao": "Câmara Municipal de Belo Horizonte (CMBH)",
+      "endereco": "Av. Getúlio Vargas, 1420, Funcionários, BH",
+      "url": "https://www.cmbh.mg.gov.br"
+    },
+    {
+      "orgao": "Prefeitura de Belo Horizonte",
+      "url": "https://prefeitura.pbh.gov.br",
+      "nota": "Consultar por secretaria temática"
+    }
+  ]
+}

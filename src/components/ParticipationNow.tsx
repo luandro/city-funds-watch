@@ -3,8 +3,12 @@ import { LiveSessionPanel } from "@/components/LiveSessionPanel";
 import { NextHearingCard } from "@/components/NextHearingCard";
 import { NoHearingsCard } from "@/components/NoHearingsCard";
 import { ErrorCard } from "@/components/ErrorCard";
+import { ParticipationShortcuts, TrustMicrocopy } from "@/components/ParticipationShortcuts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { sourceRegistryService } from "@/data/sourceRegistryService";
+import { HEARING_SCHEDULE_URL } from "@/constants/urls";
 
 interface ParticipationNowProps {
   mode: LandingPageMode;
@@ -51,6 +55,22 @@ export function ParticipationNow({
   onFollowTopics,
   className,
 }: ParticipationNowProps) {
+  const [scheduleUrl, setScheduleUrl] = useState<string>(HEARING_SCHEDULE_URL);
+
+  useEffect(() => {
+    async function loadScheduleUrl() {
+      try {
+        const shortcuts = await sourceRegistryService.getShortcuts();
+        if (shortcuts.hearingSchedule?.url) {
+          setScheduleUrl(shortcuts.hearingSchedule.url);
+        }
+      } catch (error) {
+        console.error("Failed to load schedule URL:", error);
+      }
+    }
+    loadScheduleUrl();
+  }, []);
+
   if (isLoading) {
     return (
       <section className={cn("space-y-4", className)}>
@@ -63,11 +83,17 @@ export function ParticipationNow({
   }
 
   return (
-    <section className={cn("space-y-4", className)}>
-      <h2 className="text-xl md:text-2xl font-bold">
-        Participar Agora
-      </h2>
+    <section className={cn("space-y-6", className)}>
+      <div>
+        <h2 className="text-xl md:text-2xl font-bold mb-1">
+          Participar Agora
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Canais oficiais de participação cidadã
+        </p>
+      </div>
 
+      {/* Hearing Info / Live Session */}
       {mode === "live" && hearing && liveSession && (
         <LiveSessionPanel
           hearing={hearing}
@@ -86,7 +112,10 @@ export function ParticipationNow({
       )}
 
       {mode === "no_hearings" && (
-        <NoHearingsCard onFollowTopics={onFollowTopics} />
+        <NoHearingsCard
+          scheduleUrl={scheduleUrl}
+          onFollowTopics={onFollowTopics}
+        />
       )}
 
       {mode === "error" && (
@@ -96,6 +125,17 @@ export function ParticipationNow({
           onRetry={onRetry}
         />
       )}
+
+      {/* Participation Shortcuts - Always visible */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Canais de Participação
+        </h3>
+        <ParticipationShortcuts />
+      </div>
+
+      {/* Trust microcopy */}
+      <TrustMicrocopy />
     </section>
   );
 }

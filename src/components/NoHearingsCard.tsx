@@ -2,6 +2,7 @@ import { Calendar, ExternalLink, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { HEARING_SCHEDULE_URL } from "@/constants/urls";
 
 interface NoHearingsCardProps {
   scheduleUrl?: string;
@@ -10,7 +11,7 @@ interface NoHearingsCardProps {
 }
 
 export function NoHearingsCard({
-  scheduleUrl = "https://www.cmbh.mg.gov.br/atividade-legislativa/audiencias-publicas",
+  scheduleUrl = HEARING_SCHEDULE_URL,
   onFollowTopics,
   className,
 }: NoHearingsCardProps) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -182,7 +183,8 @@ const Projects = () => {
         </section>
 
         {/* Projects by Status */}
-        {Object.entries(groupedItems).map(([status, statusItems]) => {
+        <ErrorBoundary sectionName="Projetos">
+          {Object.entries(groupedItems).map(([status, statusItems]) => {
           if (statusItems.length === 0) return null;
 
           const statusInfo = statusConfig[status as keyof typeof statusConfig];
@@ -268,20 +270,21 @@ const Projects = () => {
               </div>
             </section>
           );
-        })}
+          })}
 
-        {/* Empty State */}
-        {filteredItems.length === 0 && (
-          <div className="text-center py-12">
-            <HardHat className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">
-              Nenhum projeto encontrado
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Tente ajustar os filtros de busca
-            </p>
-          </div>
-        )}
+          {/* Empty State */}
+          {filteredItems.length === 0 && (
+            <div className="text-center py-12">
+              <HardHat className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg text-muted-foreground">
+                Nenhum projeto encontrado
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Tente ajustar os filtros de busca
+              </p>
+            </div>
+          )}
+        </ErrorBoundary>
 
         {/* Timestamp */}
         <footer

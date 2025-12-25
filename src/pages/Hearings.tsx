@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Countdown } from "@/components/Countdown";
@@ -82,8 +83,9 @@ const Hearings = () => {
         <PrototypeBanner />
 
         {/* Upcoming Hearings */}
-        {upcomingHearings.length > 0 && (
-          <section className="space-y-4">
+        <ErrorBoundary sectionName="Audiências">
+          {upcomingHearings.length > 0 && (
+            <section className="space-y-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-primary" />
               Próximas Audiências
@@ -180,54 +182,55 @@ const Hearings = () => {
                   </Card>
                 );
               })}
+              </div>
+            </section>
+          )}
+
+          {/* Past Hearings */}
+          {pastHearings.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2 text-muted-foreground">
+                <CheckCircle2 className="w-5 h-5" />
+                Audiências Anteriores
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pastHearings.map((hearing) => (
+                  <Card key={hearing.id} className="opacity-75 hover:opacity-100 transition-opacity">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{hearing.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(hearing.startsAtISO)}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {hearing.topics.slice(0, 2).map((topic) => (
+                          <Badge key={topic} variant="outline" className="text-xs">
+                            {topic}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Empty State */}
+          {hearings.length === 0 && (
+            <div className="text-center py-12">
+              <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg text-muted-foreground">
+                Nenhuma audiência agendada no momento
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Volte em breve para conferir novas audiências
+              </p>
             </div>
-          </section>
-        )}
-
-        {/* Past Hearings */}
-        {pastHearings.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2 text-muted-foreground">
-              <CheckCircle2 className="w-5 h-5" />
-              Audiências Anteriores
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pastHearings.map((hearing) => (
-                <Card key={hearing.id} className="opacity-75 hover:opacity-100 transition-opacity">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">{hearing.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(hearing.startsAtISO)}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {hearing.topics.slice(0, 2).map((topic) => (
-                        <Badge key={topic} variant="outline" className="text-xs">
-                          {topic}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Empty State */}
-        {hearings.length === 0 && (
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">
-              Nenhuma audiência agendada no momento
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Volte em breve para conferir novas audiências
-            </p>
-          </div>
-        )}
+          )}
+        </ErrorBoundary>
 
         {/* Info Box */}
         <section

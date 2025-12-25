@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +13,6 @@ import {
   Lightbulb,
   TreePine,
   Shield,
-  ArrowRight,
   TrendingUp,
   TrendingDown,
   Minus
@@ -239,8 +238,9 @@ const Services = () => {
         <PrototypeBanner />
 
         {/* Services Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {services.map((service, index) => {
+        <ErrorBoundary sectionName="Serviços">
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {services.map((service, index) => {
             const Icon = iconMap[service.icon];
             const statusInfo = statusConfig[service.status];
 
@@ -280,20 +280,15 @@ const Services = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     <span>Atualizado: {formatDate(service.lastUpdate)}</span>
-                    <Link
-                      to={`/service/${service.id}`}
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
-                    >
-                      Detalhes <ArrowRight className="w-3 h-3" />
-                    </Link>
                   </div>
                 </CardContent>
               </Card>
             );
-          })}
-        </section>
+            })}
+          </section>
+        </ErrorBoundary>
 
         {/* Timestamp */}
         <footer

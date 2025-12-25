@@ -7,7 +7,9 @@ const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    // Log only the first segment to avoid exposing sensitive path info
+    const sanitizedPath = "/" + (location.pathname.split("/")[1] || "");
+    console.error("404 Error: Route not found:", sanitizedPath);
   }, [location.pathname]);
 
   return (

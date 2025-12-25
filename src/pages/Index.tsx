@@ -1,160 +1,269 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { Header } from "@/components/Header";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
-import { StatCard } from "@/components/StatCard";
-import { FiscalStatus } from "@/components/FiscalStatus";
-import { TrendChart } from "@/components/TrendChart";
-import { ListenButton } from "@/components/ListenButton";
+import { ParticipationNow } from "@/components/ParticipationNow";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Skeleton } from "@/components/ui/skeleton";
 import { dataService } from "@/data/dataService";
-import { HomeSummary } from "@/data/types";
-import { getMonthName } from "@/data/mockData";
-import { formatMoney, formatDate } from "@/utils/formatters";
-import { Wallet, Receipt, Scale, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { LandingPageState, FeedItem, Question, VoteChange } from "@/data/types";
+import { TopicMoneySummary } from "@/data/mockData";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/utils/formatters";
+
+// Lazy load below-the-fold components for better initial load performance
+const MakeItYours = lazy(() => import("@/components/MakeItYours").then(m => ({ default: m.MakeItYours })));
+const CivicFeed = lazy(() => import("@/components/CivicFeed").then(m => ({ default: m.CivicFeed })));
+const MoneyBriefly = lazy(() => import("@/components/MoneyBriefly").then(m => ({ default: m.MoneyBriefly })));
+
+// Loading fallback for lazy components
+function SectionSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  );
+}
+
+// Helper function to filter feed items locally
+function filterFeedItems(
+  items: FeedItem[],
+  neighborhood: string | null,
+  followedTopics: string[]
+): FeedItem[] {
+  return items.filter((item) => {
+    const matchesNeighborhood =
+      !neighborhood || // "Whole city" shows all
+      !item.neighborhood || // City-wide items always show
+      item.neighborhood === neighborhood;
+
+    const matchesTopic =
+      followedTopics.length === 0 || // No topics selected shows all
+      !item.topic || // Items without topic always show
+      followedTopics.includes(item.topic);
+
+    return matchesNeighborhood && matchesTopic;
+  });
+}
 
 const Index = () => {
-  const [data, setData] = useState<HomeSummary | null>(null);
+  const [pageState, setPageState] = useState<LandingPageState | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [moneySummaries, setMoneySummaries] = useState<TopicMoneySummary[]>([]);
+  const [localSpendHeadline, setLocalSpendHeadline] = useState<{
+    localSharePct: number;
+    message: string;
+    detailsUrl: string;
+  } | null>(null);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const {
+    neighborhood,
+    followedTopics,
+    setNeighborhood,
+    toggleTopic,
+    resetPreferences,
+    isLoaded: preferencesLoaded,
+  } = useUserPreferences();
+
+  const { toast } = useToast();
+
+  // Ref to scroll to MakeItYours section
+  const makeItYoursRef = useRef<HTMLDivElement>(null);
+
+  // Load initial data
+  // TODO: When moving to production API, consider consolidating these into
+  // a single getInitialPageData() endpoint to reduce HTTP overhead
   useEffect(() => {
-    dataService.getHomeSummary().then((summary) => {
-      setData(summary);
-      setLoading(false);
-    });
+    async function loadData() {
+      try {
+        const [state, neighborhoodList, topicList, suggested, headline] = await Promise.all([
+          dataService.getLandingPageState(),
+          dataService.getNeighborhoods(),
+          dataService.getTopics(),
+          dataService.getSuggestedTopics(),
+          dataService.getLocalSpendHeadline(),
+        ]);
+
+        setPageState(state);
+        setQuestions(state.questions || []);
+        setNeighborhoods(neighborhoodList);
+        setTopics(topicList);
+        setSuggestedTopics(suggested);
+        setLocalSpendHeadline(headline);
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to load landing page data:", error);
+        setPageState({
+          mode: "error",
+          errorMessage: "Erro ao carregar dados",
+        });
+        setLoading(false);
+      }
+    }
+
+    loadData();
   }, []);
 
-  if (loading || !data) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-pulse text-muted-foreground">
-              Carregando...
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  // Filter feed items locally using useMemo (no re-fetching)
+  const filteredFeed = useMemo(() => {
+    if (!pageState?.feedItems || !preferencesLoaded) {
+      return [];
+    }
+    return filterFeedItems(pageState.feedItems, neighborhood, followedTopics);
+  }, [pageState?.feedItems, neighborhood, followedTopics, preferencesLoaded]);
 
-  const { currentMonth, yearToDate, status, history, updatedAtISO } = data;
-  const monthName = getMonthName(currentMonth.month);
-  const balance = currentMonth.revenue - currentMonth.expensePaid;
-  const isPositive = balance >= 0;
+  // Load money summaries when followed topics change
+  useEffect(() => {
+    if (!preferencesLoaded) return;
 
-  const summaryText = `Em ${monthName}, a receita foi de ${formatMoney(currentMonth.revenue, true)}, as despesas foram ${formatMoney(currentMonth.expensePaid, true)}, e o saldo foi de ${formatMoney(Math.abs(balance), true)} ${isPositive ? 'positivo' : 'negativo'}. Status: ${status === 'green' ? 'saudável' : status === 'yellow' ? 'atenção' : status === 'red' ? 'crítico' : 'indisponível'}.`;
+    async function loadMoneySummaries() {
+      try {
+        const summaries = await dataService.getTopicMoneySummaries(followedTopics);
+        setMoneySummaries(summaries);
+      } catch (error) {
+        console.error("Failed to load money summaries:", error);
+        // Fail gracefully - money section will show empty state
+        setMoneySummaries([]);
+      }
+    }
+
+    loadMoneySummaries();
+  }, [followedTopics, preferencesLoaded]);
+
+  // Handlers
+  const handleRetry = useCallback(async () => {
+    setLoading(true);
+    try {
+      const state = await dataService.getLandingPageState();
+      setPageState(state);
+      setQuestions(state.questions || []);
+    } catch (error) {
+      setPageState({
+        mode: "error",
+        errorMessage: "Erro ao carregar dados",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleVote = useCallback(async (questionId: string, voteChange: VoteChange) => {
+    // The QuestionsPanel handles optimistic UI updates internally
+    // Here we just send the vote change to the backend
+    await dataService.voteQuestion(questionId, voteChange);
+  }, []);
+
+  const handleSubmitQuestion = useCallback(async (title: string) => {
+    if (!pageState?.hearing || !title.trim()) return;
+
+    try {
+      const newQuestion = await dataService.submitQuestion({
+        hearingId: pageState.hearing.id,
+        title: title.trim(),
+      });
+
+      // Add the new question to the list (optimistic update)
+      setQuestions((prev) => [newQuestion, ...prev]);
+    } catch (error) {
+      console.error("Failed to submit question:", error);
+    }
+  }, [pageState?.hearing]);
+
+  const scrollToMakeItYours = useCallback(() => {
+    makeItYoursRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  const handleOpenQuestionForm = useCallback(() => {
+    toast({
+      title: "Perguntas disponíveis durante a sessão",
+      description: "Você poderá enviar perguntas quando a audiência estiver ao vivo. Ative as notificações para ser avisado!",
+    });
+  }, [toast]);
+
+  // Determine the latest update timestamp
+  const latestUpdate = pageState?.hearing?.updatedAtISO ||
+    pageState?.liveSession?.updatedAtISO ||
+    new Date().toISOString();
+
+  // Check if we're still waiting for preferences to load (prevents flash of empty state)
+  const isFeedReady = preferencesLoaded && pageState?.feedItems;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="container mx-auto px-4 py-6 md:py-10 space-y-8">
-        {/* Hero Section */}
-        <section className="text-center space-y-4 opacity-0 animate-fade-in" style={{ animationFillMode: 'forwards' }}>
-          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground">
-            BH Hoje
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Entenda as finanças da cidade em 10 segundos
-          </p>
-        </section>
 
+      <main className="container mx-auto px-4 py-4 md:py-6 space-y-8 md:space-y-10">
         {/* Prototype Banner */}
         <PrototypeBanner />
 
-        {/* Main Stats Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <StatCard
-            icon={Wallet}
-            iconColor="text-money-revenue"
-            label="Receita do Mês"
-            value={formatMoney(currentMonth.revenue, true)}
-            subtitle={monthName}
-            delay={100}
+        {/* SECTION 1: Participation Now - Always above the fold */}
+        <ErrorBoundary sectionName="Participação">
+          <ParticipationNow
+            mode={pageState?.mode || "error"}
+            hearing={pageState?.hearing}
+            liveSession={pageState?.liveSession}
+            questions={questions}
+            lastCachedHearing={pageState?.lastCachedHearing}
+            errorMessage={pageState?.errorMessage}
+            isLoading={loading}
+            onVote={handleVote}
+            onSubmitQuestion={handleSubmitQuestion}
+            onOpenQuestionForm={handleOpenQuestionForm}
+            onRetry={handleRetry}
+            onFollowTopics={scrollToMakeItYours}
           />
-          
-          <StatCard
-            icon={Receipt}
-            iconColor="text-money-expense"
-            label="Despesas Pagas"
-            value={formatMoney(currentMonth.expensePaid, true)}
-            subtitle={monthName}
-            delay={200}
-          />
-          
-          <StatCard
-            icon={Scale}
-            iconColor={isPositive ? "text-money-balance-positive" : "text-money-balance-negative"}
-            label="Saldo do Mês"
-            value={`${isPositive ? '+' : '-'}${formatMoney(Math.abs(balance), true)}`}
-            subtitle={isPositive ? "Superávit" : "Déficit"}
-            delay={300}
-          />
-        </section>
+        </ErrorBoundary>
 
-        {/* Status and Chart */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-4">
-            <FiscalStatus status={status} delay={400} />
-            
-            {/* Year to Date Summary */}
-            <div 
-              className="card-civic opacity-0 animate-slide-up"
-              style={{ animationDelay: '500ms', animationFillMode: 'forwards' }}
-            >
-              <h3 className="stat-label mb-4">Acumulado do Ano</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Receita</p>
-                  <p className="font-display font-bold text-lg text-foreground">
-                    {formatMoney(yearToDate.revenue, true)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Despesas</p>
-                  <p className="font-display font-bold text-lg text-foreground">
-                    {formatMoney(yearToDate.expensePaid, true)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Saldo</p>
-                  <p className={`font-display font-bold text-lg ${yearToDate.balance >= 0 ? 'text-money-balance-positive' : 'text-money-balance-negative'}`}>
-                    {formatMoney(yearToDate.balance, true)}
-                  </p>
-                </div>
-              </div>
+        {/* SECTION 2: Make it Yours - Personalization (lazy loaded) */}
+        <ErrorBoundary sectionName="Personalização">
+          <Suspense fallback={<SectionSkeleton />}>
+            <div ref={makeItYoursRef}>
+              <MakeItYours
+                neighborhoods={neighborhoods}
+                topics={topics}
+                suggestedTopics={suggestedTopics}
+                selectedNeighborhood={neighborhood}
+                followedTopics={followedTopics}
+                onNeighborhoodChange={setNeighborhood}
+                onTopicToggle={toggleTopic}
+                onReset={resetPreferences}
+              />
             </div>
-          </div>
+          </Suspense>
+        </ErrorBoundary>
 
-          <TrendChart data={history} delay={450} />
-        </section>
+        {/* SECTION 3: Your Civic Feed (lazy loaded) */}
+        <ErrorBoundary sectionName="Feed Cívico">
+          <Suspense fallback={<SectionSkeleton />}>
+            <CivicFeed
+              items={filteredFeed}
+              neighborhood={neighborhood}
+              isLoading={loading}
+              isFiltering={!isFeedReady}
+            />
+          </Suspense>
+        </ErrorBoundary>
 
-        {/* Listen Button and CTA */}
-        <section 
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-slide-up"
-          style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}
-        >
-          <ListenButton text={summaryText} />
-          
-          <Link to="/local-spend">
-            <Button 
-              size="lg" 
-              className="gap-2 rounded-xl bg-primary hover:bg-primary-glow transition-all"
-            >
-              Ver Gastos Locais
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </section>
+        {/* SECTION 4: Money, Briefly (lazy loaded) */}
+        <ErrorBoundary sectionName="Dinheiro">
+          <Suspense fallback={<SectionSkeleton />}>
+            <MoneyBriefly
+              summaries={moneySummaries}
+              localSpendHeadline={localSpendHeadline || undefined}
+              followedTopics={followedTopics}
+              isLoading={loading}
+            />
+          </Suspense>
+        </ErrorBoundary>
 
         {/* Timestamp */}
-        <footer 
-          className="text-center text-sm text-muted-foreground opacity-0 animate-fade-in"
-          style={{ animationDelay: '700ms', animationFillMode: 'forwards' }}
-        >
-          <p>Última atualização: {formatDate(updatedAtISO)}</p>
+        <footer className="text-center text-xs text-muted-foreground pb-4">
+          <p>Última atualização: {formatDate(latestUpdate)}</p>
         </footer>
       </main>
     </div>

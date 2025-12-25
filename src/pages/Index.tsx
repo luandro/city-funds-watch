@@ -10,6 +10,7 @@ import { dataService } from "@/data/dataService";
 import { LandingPageState, FeedItem, Question } from "@/data/types";
 import { TopicMoneySummary } from "@/data/mockData";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/utils/formatters";
 
 // Helper function to filter feed items locally
@@ -55,6 +56,8 @@ const Index = () => {
     resetPreferences,
     isLoaded: preferencesLoaded,
   } = useUserPreferences();
+
+  const { toast } = useToast();
 
   // Ref to scroll to MakeItYours section
   const makeItYoursRef = useRef<HTMLDivElement>(null);
@@ -166,6 +169,13 @@ const Index = () => {
     makeItYoursRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  const handleOpenQuestionForm = useCallback(() => {
+    toast({
+      title: "Perguntas disponíveis durante a sessão",
+      description: "Você poderá enviar perguntas quando a audiência estiver ao vivo. Ative as notificações para ser avisado!",
+    });
+  }, [toast]);
+
   // Determine the latest update timestamp
   const latestUpdate = pageState?.hearing?.updatedAtISO ||
     pageState?.liveSession?.updatedAtISO ||
@@ -194,6 +204,7 @@ const Index = () => {
             isLoading={loading}
             onVote={handleVote}
             onSubmitQuestion={handleSubmitQuestion}
+            onOpenQuestionForm={handleOpenQuestionForm}
             onRetry={handleRetry}
             onFollowTopics={scrollToMakeItYours}
           />

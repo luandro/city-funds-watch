@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface NextHearingCardProps {
   hearing: Hearing;
-  onSubmitQuestion?: () => void;
+  onOpenQuestionForm?: () => void;
   className?: string;
 }
 
@@ -27,7 +27,7 @@ function formatDate(isoDate: string): string {
 
 export function NextHearingCard({
   hearing,
-  onSubmitQuestion,
+  onOpenQuestionForm,
   className,
 }: NextHearingCardProps) {
   return (
@@ -103,7 +103,7 @@ export function NextHearingCard({
           <Button
             variant="default"
             size="sm"
-            onClick={onSubmitQuestion}
+            onClick={onOpenQuestionForm}
             className="gap-1.5"
           >
             <MessageSquarePlus size={16} />

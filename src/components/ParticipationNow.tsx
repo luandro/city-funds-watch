@@ -16,6 +16,7 @@ interface ParticipationNowProps {
   isLoading?: boolean;
   onVote?: (questionId: string, direction: "up" | "down") => void;
   onSubmitQuestion?: (title: string) => void;
+  onOpenQuestionForm?: () => void;
   onRetry?: () => void;
   onFollowTopics?: () => void;
   className?: string;
@@ -45,6 +46,7 @@ export function ParticipationNow({
   isLoading = false,
   onVote,
   onSubmitQuestion,
+  onOpenQuestionForm,
   onRetry,
   onFollowTopics,
   className,
@@ -79,7 +81,7 @@ export function ParticipationNow({
       {mode === "next_hearing" && hearing && (
         <NextHearingCard
           hearing={hearing}
-          onSubmitQuestion={() => onSubmitQuestion?.("")}
+          onOpenQuestionForm={onOpenQuestionForm}
         />
       )}
 

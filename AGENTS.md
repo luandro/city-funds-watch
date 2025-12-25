@@ -38,14 +38,19 @@
 - Commit messages follow Conventional Commits (examples in history: `feat:`, `fix:`, `refactor:`).
 - PRs should include: a clear summary, steps to verify, and screenshots or GIFs for UI changes.
 - Link relevant issues or discussions when applicable.
+- **After addressing PR review comments**: Add a +1 reaction to acknowledge that feedback has been addressed.
+  - Extract comment ID from the URL (e.g., `issuecomment-3691607909` → `3691607909`)
+  - Use: `gh api repos/OWNER/REPO/issues/comments/COMMENT_ID/reactions -X POST -f content="+1"`
+  - This signals to reviewers that their feedback has been implemented and can be verified.
 
 ## Configuration & Architecture Notes
 - The landing page uses a state-machine style flow under `src/components/ParticipationNow.tsx` and `src/pages/Index.tsx`.
 - Data access is centralized in `src/data/dataService.ts`, which currently serves mock data.
+- Source registry data is loaded via `src/data/sourceRegistryService.ts`, with configurable external data source via `src/config/data-source.ts` and `VITE_DATA_SOURCE_URL` environment variable.
 
 ## GitHub CLI Reference
-- **Add reaction to PR**: `gh api -X POST repos/OWNER/REPO/issues/PR_NUMBER/reactions -f content="+1"`
-  - Example: `gh api -X POST repos/luandro/city-funds-watch/issues/4/reactions -f content="+1"`
-  - Note: React to the PR itself (issues/4), not individual comments, as comment reactions may not be accessible via API
+- **Add reaction to PR comment**: `gh api repos/OWNER/REPO/issues/comments/COMMENT_ID/reactions -X POST -f content="+1"`
+  - Example: `gh api repos/luandro/city-funds-watch/issues/comments/3691607909/reactions -X POST -f content="+1"`
+  - Note: Use the comment ID from the URL (issuecomment-XXXXXXXXX) to react to specific review comments
 - **View PR comments**: `gh pr view 4 --json comments,reviews`
-- **Fetch specific comment**: `gh api repos/OWNER/REPO/issues/COMMENT_ID` (may return 404 if comment is from a bot or deleted)
+- **View PR review comments**: `gh pr view 4 --json reviews --jq '.reviews[] | select(.author.login == "bot-name")'`

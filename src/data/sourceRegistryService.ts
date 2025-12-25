@@ -8,6 +8,7 @@
 import { SourceRegistry, RegistrySection, RegistryLink, RegistryGap } from "./sourceRegistryTypes";
 import { parseSourceRegistry } from "./sourceRegistryParser";
 import { TRANSPARENCY_PORTAL_URL, LAI_URL } from "@/constants/urls";
+import { DATA_SOURCE_URL } from "@/config/data-source";
 
 class SourceRegistryService {
   private cache: SourceRegistry | null = null;
@@ -97,8 +98,8 @@ class SourceRegistryService {
    */
   private async loadAndParse(): Promise<SourceRegistry> {
     try {
-      // Try to load from public folder with BASE_URL prefix, bypassing cache
-      const response = await fetch(`${import.meta.env.BASE_URL}BH-dados-publicos.json`, {
+      // Load from configured data source (external URL or local fallback)
+      const response = await fetch(DATA_SOURCE_URL, {
         cache: "no-store",
       });
 

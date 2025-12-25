@@ -1,0 +1,25 @@
+/**
+ * Data Source Configuration
+ *
+ * Central configuration for external data sources.
+ * This allows for easy updates to data locations without redeployment.
+ */
+
+/**
+ * External data source URL for BH-dados-publicos.json
+ *
+ * This can be configured via environment variable VITE_DATA_SOURCE_URL
+ * Falls back to local file if not configured (for development)
+ *
+ * Production: Use CDN or external API for decoupled data updates
+ * Development: Falls back to local public folder file
+ */
+export const DATA_SOURCE_URL =
+  import.meta.env.VITE_DATA_SOURCE_URL ||
+  `${import.meta.env.BASE_URL}BH-dados-publicos.json`;
+
+/**
+ * Enable/disable external data source
+ * Set to true to force using external URL even if local file exists
+ */
+export const FORCE_EXTERNAL_SOURCE = import.meta.env.VITE_FORCE_EXTERNAL_SOURCE === "true";

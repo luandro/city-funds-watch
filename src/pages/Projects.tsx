@@ -14,12 +14,14 @@ import {
   Clock,
   CheckCircle2,
   Filter,
-  Search
+  Search,
+  RefreshCw
 } from "lucide-react";
 import { dataService } from "@/data/dataService";
 import { FeedItem } from "@/data/types";
 import { formatMoney, formatDate } from "@/utils/formatters";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const statusConfig = {
   new: { label: "Novo", className: "bg-primary/10 text-primary", icon: TrendingUp },
@@ -42,20 +44,32 @@ const Projects = () => {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   const highlightedId = searchParams.get("id");
 
-  useEffect(() => {
-    dataService.getFeedItems().then((data) => {
+  const loadProjects = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await dataService.getFeedItems();
       // Filter to only show project-type items
       const projectItems = data.filter(
         (item) => item.kind === "project" || item.kind === "permit"
       );
       setItems(projectItems);
+    } catch (err) {
+      console.error("Failed to load projects:", err);
+      setError("Não foi possível carregar os projetos. Tente novamente.");
+    } finally {
       setLoading(false);
-    });
+    }
+  };
+
+  useEffect(() => {
+    loadProjects();
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -100,6 +114,24 @@ const Projects = () => {
             <div className="animate-pulse text-muted-foreground">
               Carregando...
             </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <AlertTriangle className="w-12 h-12 text-destructive" />
+            <p className="text-muted-foreground text-center">{error}</p>
+            <Button onClick={loadProjects} variant="outline" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Tentar novamente
+            </Button>
           </div>
         </main>
       </div>

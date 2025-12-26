@@ -235,7 +235,9 @@ function validateRawRegistry(raw: unknown): RawRegistry {
 
   // Warn about unexpected keys (potential data injection)
   const expectedKeys = new Set([
-    "metadata", "portais_de_acesso", "lacunas", ...sectionKeys,
+    "metadata", "portais_de_acesso", "lacunas",
+    "resumo_cobertura", "instrucoes_atualizacao", "contatos_oficiais",
+    ...sectionKeys,
   ]);
 
   for (const key of Object.keys(raw)) {

@@ -15,12 +15,15 @@ get_changed_files() {
 }
 
 docs_only=true
-while IFS= read -r file; do
-  case "$file" in
-    *.md|docs/*|README*|.github/*) ;;
-    *) docs_only=false; break ;;
-  esac
-done < <(get_changed_files)
+files=$(get_changed_files)
+if [ -n "$files" ]; then
+  for file in $files; do
+    case "$file" in
+      *.md|docs/*|README*|.github/*) ;;
+      *) docs_only=false; break ;;
+    esac
+  done
+fi
 
 if [ "$docs_only" = "true" ]; then
   echo "Docs-only changes detected; skipping build."

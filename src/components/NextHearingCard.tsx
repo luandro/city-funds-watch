@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface NextHearingCardProps {
   hearing: Hearing;
   onOpenQuestionForm?: () => void;
+  scheduleUrl?: string;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ function formatDate(isoDate: string): string {
 export function NextHearingCard({
   hearing,
   onOpenQuestionForm,
+  scheduleUrl,
   className,
 }: NextHearingCardProps) {
   return (
@@ -83,7 +85,8 @@ export function NextHearingCard({
 
         <div className="flex flex-wrap gap-3 pt-2">
           {(() => {
-            const linkProps = getSafeLinkProps(hearing.scheduleUrl);
+            const finalUrl = scheduleUrl || hearing.scheduleUrl;
+            const linkProps = getSafeLinkProps(finalUrl);
             return linkProps.href ? (
               <Button
                 variant="outline"

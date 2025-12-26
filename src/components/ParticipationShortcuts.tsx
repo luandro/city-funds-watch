@@ -183,7 +183,7 @@ export function TrustMicrocopy() {
         to="/sources"
         className="text-primary hover:underline font-medium"
       >
-        Ver fontes
+        Fontes
       </Link>
     </div>
   );

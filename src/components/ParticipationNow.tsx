@@ -28,14 +28,34 @@ interface ParticipationNowProps {
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-6 w-full max-w-md" />
-      <div className="flex gap-4">
-        <Skeleton className="h-10 w-32" />
-        <Skeleton className="h-10 w-32" />
+    <div className="space-y-6">
+      {/* Skeleton for HearingCard / LiveSession */}
+      <div className="border border-border rounded-2xl p-6 bg-card/50">
+        <div className="space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-3/4" />
+            </div>
+            <Skeleton className="h-10 w-10 rounded-full" />
+          </div>
+          <div className="flex gap-4">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+          <Skeleton className="h-10 w-full rounded-xl" />
+        </div>
       </div>
-      <Skeleton className="h-[200px] w-full" />
+      
+      {/* Skeleton for Shortcuts */}
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-40" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -74,9 +94,12 @@ export function ParticipationNow({
   if (isLoading) {
     return (
       <section className={cn("space-y-4", className)}>
-        <h2 className="text-xl font-bold text-muted-foreground">
+        <h2 className="text-xl md:text-2xl font-bold mb-1">
           Participar Agora
         </h2>
+        <p className="text-sm text-muted-foreground">
+          Canais oficiais de participação cidadã
+        </p>
         <LoadingSkeleton />
       </section>
     );
@@ -108,6 +131,7 @@ export function ParticipationNow({
         <NextHearingCard
           hearing={hearing}
           onOpenQuestionForm={onOpenQuestionForm}
+          scheduleUrl={scheduleUrl}
         />
       )}
 
@@ -123,6 +147,7 @@ export function ParticipationNow({
           message={errorMessage}
           lastCachedHearing={lastCachedHearing}
           onRetry={onRetry}
+          scheduleUrl={scheduleUrl}
         />
       )}
 

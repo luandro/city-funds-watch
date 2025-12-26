@@ -22,6 +22,7 @@ import {
   Search,
   Filter,
   X,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,47 @@ const sectionColors: Record<string, string> = {
   H: "bg-indigo-500",
   I: "bg-yellow-500",
 };
+
+/**
+ * Get icon for a section based on its tags or title
+ */
+function getSectionIcon(section: RegistrySection) {
+  const letter = section.letter || "";
+  if (sectionIcons[letter]) return sectionIcons[letter];
+
+  const tags = section.tags?.map(t => t.toLowerCase()) || [];
+  const title = section.title.toLowerCase();
+
+  if (tags.includes("saúde") || title.includes("saúde")) return Building2;
+  if (tags.includes("educação") || title.includes("educação")) return Building2;
+  if (tags.includes("legislação") || title.includes("lei")) return FileText;
+  if (tags.includes("orçamento") || title.includes("contas")) return Calendar;
+  if (tags.includes("participação") || title.includes("conselho")) return Users;
+
+  return Building2;
+}
+
+/**
+ * Get color for a section based on its letter or index
+ */
+function getSectionColor(section: RegistrySection, index: number) {
+  const letter = section.letter || "";
+  if (sectionColors[letter]) return sectionColors[letter];
+
+  const colors = [
+    "bg-blue-500",
+    "bg-purple-500",
+    "bg-green-500",
+    "bg-orange-500",
+    "bg-pink-500",
+    "bg-red-500",
+    "bg-teal-500",
+    "bg-indigo-500",
+    "bg-yellow-500",
+  ];
+
+  return colors[index % colors.length];
+}
 
 export default function Sources() {
   const [sections, setSections] = useState<RegistrySection[]>([]);
@@ -163,7 +205,7 @@ export default function Sources() {
             {/* Sections Tab */}
             <TabsContent value="sections" className="space-y-6">
               <Alert>
-                <InfoIcon className="h-4 w-4" />
+                <Info className="h-4 w-4" />
                 <AlertTitle>Índice de fontes oficiais</AlertTitle>
                 <AlertDescription>
                   Este é um catálogo curado de portais e documentos oficiais do município.
@@ -172,9 +214,9 @@ export default function Sources() {
               </Alert>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sections.map((section) => {
-                  const Icon = sectionIcons[section.letter || ""] || Building2;
-                  const bgColor = sectionColors[section.letter || ""] || "bg-gray-500";
+                {sections.map((section, idx) => {
+                  const Icon = getSectionIcon(section);
+                  const bgColor = getSectionColor(section, idx);
 
                   return (
                     <Card
@@ -323,15 +365,15 @@ function SectionDetailView({
   onBack: () => void;
   gaps: RegistryGap[];
 }) {
-  const Icon = sectionIcons[section.letter || ""] || Building2;
-  const bgColor = sectionColors[section.letter || ""] || "bg-gray-500";
+  const Icon = getSectionIcon(section);
+  const bgColor = getSectionColor(section, 0); // index doesn't matter much for detail view if letter is present
 
   return (
     <div className="space-y-6">
       {/* Back button */}
       <Button variant="ghost" onClick={onBack} className="gap-2">
         <X className="w-4 h-4" />
-        Voltar para exploração
+        Explorar todas áreas
       </Button>
 
       {/* Section Header */}
@@ -360,7 +402,7 @@ function SectionDetailView({
 
       {/* What you can do here */}
       <Alert>
-        <InfoIcon className="h-4 w-4" />
+        <Info className="h-4 w-4" />
         <AlertTitle>O que você pode fazer aqui</AlertTitle>
         <AlertDescription>
           Acompanhe {section.links.length} {section.links.length === 1 ? "fontes oficial" : "fontes oficiais"}{" "}
@@ -381,7 +423,7 @@ function SectionDetailView({
       {/* Notes */}
       {section.notes && section.notes.length > 0 && (
         <Alert variant="default">
-          <InfoIcon className="h-4 w-4" />
+          <Info className="h-4 w-4" />
           <AlertTitle>Observações</AlertTitle>
           <AlertDescription>
             <ul className="list-disc list-inside space-y-1">
@@ -501,24 +543,3 @@ function GapSeverityBadge({ severity }: { severity: RegistryGap["severity"] }) {
   );
 }
 
-/**
- * Info Icon placeholder
- */
-function InfoIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
-  );
-}

@@ -9,23 +9,72 @@ import { SourceRegistry, RegistrySection, RegistryLink, RegistryGap } from "./so
 import { parseSourceRegistry } from "./sourceRegistryParser";
 import { TRANSPARENCY_PORTAL_URL, LAI_URL } from "@/constants/urls";
 import { DATA_SOURCE_URL } from "@/config/data-source";
+import { logger } from "@/utils/logger";
 
 class SourceRegistryService {
   private cache: SourceRegistry | null = null;
   private loadPromise: Promise<SourceRegistry> | null = null;
   private error: Error | null = null;
+  private cacheTimestamp: number | null = null;
 
   /**
-   * Get the registry (loads and parses on first call, then caches)
+   * Fetch timeout in milliseconds
    */
-  async getRegistry(): Promise<SourceRegistry> {
-    // Return cached if available
-    if (this.cache) {
+  private readonly FETCH_TIMEOUT = 10000; // 10 seconds
+
+  /**
+   * Cache time-to-live in milliseconds
+   * After this duration, the cache is considered stale and will be refreshed
+   */
+  private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+  /**
+   * Retry configuration
+   */
+  private readonly RETRY_CONFIG = {
+    maxRetries: 3,
+    initialDelay: 1000, // 1 second
+    maxDelay: 10000, // 10 seconds
+    backoffMultiplier: 2,
+  } as const;
+
+  /**
+   * Check if cache is valid (not expired)
+   */
+  private isCacheValid(): boolean {
+    if (!this.cache || !this.cacheTimestamp) {
+      return false;
+    }
+
+    const now = Date.now();
+    const age = now - this.cacheTimestamp;
+    return age < this.CACHE_TTL;
+  }
+
+  /**
+   * Get the registry (loads and parses on first call, then caches with TTL)
+   */
+  async getRegistry(forceRefresh = false): Promise<SourceRegistry> {
+    // Return cached if available and not expired (unless force refresh)
+    if (!forceRefresh && this.isCacheValid() && this.cache) {
+      logger.debug("Returning cached registry", {
+        age: Date.now() - (this.cacheTimestamp || 0),
+        ttl: this.CACHE_TTL,
+      });
       return this.cache;
+    }
+
+    // Log if cache is stale
+    if (this.cache && !this.isCacheValid() && !forceRefresh) {
+      logger.info("Registry cache expired, refreshing", {
+        age: Date.now() - (this.cacheTimestamp || 0),
+        ttl: this.CACHE_TTL,
+      });
     }
 
     // Return existing promise if loading in progress
     if (this.loadPromise) {
+      logger.debug("Registry load in progress, returning existing promise");
       return this.loadPromise;
     }
 
@@ -35,6 +84,12 @@ class SourceRegistryService {
     try {
       const registry = await this.loadPromise;
       this.cache = registry;
+      this.cacheTimestamp = Date.now();
+      logger.info("Registry loaded and cached successfully", {
+        sections: registry.sections.length,
+        links: registry.sections.reduce((sum, s) => sum + s.links.length, 0),
+        gaps: registry.gaps.length,
+      });
       return registry;
     } catch (err) {
       this.error = err as Error;
@@ -91,37 +146,136 @@ class SourceRegistryService {
     this.cache = null;
     this.loadPromise = null;
     this.error = null;
+    this.cacheTimestamp = null;
+    logger.debug("Registry cache cleared");
   }
 
   /**
-   * Load and parse the JSON file
+   * Get cache age in milliseconds (or null if not cached)
    */
-  private async loadAndParse(): Promise<SourceRegistry> {
+  getCacheAge(): number | null {
+    if (!this.cacheTimestamp) return null;
+    return Date.now() - this.cacheTimestamp;
+  }
+
+  /**
+   * Check if cache is stale (but might still be used)
+   */
+  isCacheStale(): boolean {
+    return !this.isCacheValid();
+  }
+
+  /**
+   * Calculate exponential backoff delay
+   */
+  private calculateBackoffDelay(attemptNumber: number): number {
+    const delay = this.RETRY_CONFIG.initialDelay *
+      Math.pow(this.RETRY_CONFIG.backoffMultiplier, attemptNumber - 1);
+    return Math.min(delay, this.RETRY_CONFIG.maxDelay);
+  }
+
+  /**
+   * Sleep utility for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Determine if an error is retryable
+   */
+  private isRetryableError(error: Error): boolean {
+    // Retry on network errors and timeouts
+    if (error.name === 'AbortError') return true;
+    if (error.name === 'TypeError' && error.message.includes('fetch')) return true;
+
+    // Retry on 5xx server errors (if we get a response)
+    if (error.message.includes('500') ||
+        error.message.includes('502') ||
+        error.message.includes('503') ||
+        error.message.includes('504')) {
+      return true;
+    }
+
+    // Don't retry on 4xx client errors (except 429 rate limit)
+    if (error.message.includes('4') && !error.message.includes('429')) {
+      return false;
+    }
+
+    // Default to retry for unknown errors
+    return true;
+  }
+
+  /**
+   * Load and parse the JSON file with retry logic
+   */
+  private async loadAndParse(attemptNumber = 1): Promise<SourceRegistry> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      logger.warn("Registry fetch timeout", {
+        attempt: attemptNumber,
+        timeout: this.FETCH_TIMEOUT,
+        url: DATA_SOURCE_URL,
+      });
+    }, this.FETCH_TIMEOUT);
+
     try {
-      // Load from configured data source (external URL or local fallback)
+      logger.debug("Attempting to load registry", {
+        attempt: attemptNumber,
+        maxRetries: this.RETRY_CONFIG.maxRetries,
+        url: DATA_SOURCE_URL,
+      });
+
       const response = await fetch(DATA_SOURCE_URL, {
         cache: "no-store",
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Failed to load registry: ${response.status} ${response.statusText}`);
       }
 
       const raw = await response.json();
-      return parseSourceRegistry(raw);
-    } catch (err) {
-      const error = err as Error;
+      const registry = parseSourceRegistry(raw);
 
-      // Secure logging: only log safe, actionable information
-      // In production, consider using a proper logging service
-      if (import.meta.env.DEV) {
-        console.error("Failed to load source registry:", error.message);
-      } else {
-        // Production: minimal logging without exposing internal details
-        console.error("Registry load failed");
+      if (attemptNumber > 1) {
+        logger.info("Registry loaded successfully after retry", {
+          attempt: attemptNumber,
+        });
       }
 
-      // Return a minimal fallback registry
+      return registry;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      const error = err as Error;
+
+      // Check if we should retry
+      const shouldRetry = attemptNumber < this.RETRY_CONFIG.maxRetries &&
+                          this.isRetryableError(error);
+
+      if (shouldRetry) {
+        const delay = this.calculateBackoffDelay(attemptNumber);
+        logger.warn("Registry load failed, retrying", {
+          attempt: attemptNumber,
+          maxRetries: this.RETRY_CONFIG.maxRetries,
+          nextAttemptIn: delay,
+          error: error.message,
+        });
+
+        await this.sleep(delay);
+        return this.loadAndParse(attemptNumber + 1);
+      }
+
+      // No more retries, log final error
+      logger.error("Registry load failed after all retries", error, {
+        attempts: attemptNumber,
+        maxRetries: this.RETRY_CONFIG.maxRetries,
+        url: DATA_SOURCE_URL,
+      });
+
       return this.createFallbackRegistry(error);
     }
   }

@@ -6,6 +6,15 @@
  */
 
 /**
+ * Link verification status
+ */
+export type LinkVerificationStatus =
+  | 'verified'      // Link was manually verified and works
+  | 'unverified'    // Link hasn't been verified yet
+  | 'broken'        // Link is known to be broken
+  | 'redirected';   // Link redirects to a different URL
+
+/**
  * Normalized link from the registry
  */
 export interface RegistryLink {
@@ -16,6 +25,11 @@ export interface RegistryLink {
   description?: string;
   official?: boolean; // default true
   sourcePath?: string; // where in JSON it came from (for debugging)
+
+  // Verification fields
+  lastVerified?: string; // ISO timestamp of last verification
+  verificationStatus?: LinkVerificationStatus;
+  verificationNotes?: string; // e.g., "Redirects to new portal"
 }
 
 /**

@@ -18,6 +18,21 @@ import {
   RawRegistryDocument,
 } from "./sourceRegistryTypes";
 import { TRANSPARENCY_PORTAL_URL, DOM_URL } from "@/constants/urls";
+import { logger } from "@/utils/logger";
+
+// ============================================================
+// VALIDATION: Constants
+// ============================================================
+
+/**
+ * Validation limits for security and performance
+ */
+export const VALIDATION_LIMITS = {
+  MAX_STRING_LENGTH: 10000,
+  MAX_ARRAY_VALIDATION_ITEMS: 1000,
+  MAX_OBJECT_DEPTH: 10,
+  MAX_URL_LENGTH: 2048,
+} as const;
 
 // ============================================================
 // SECURITY: Input Validation Schema
@@ -41,11 +56,17 @@ function isValidUrl(url: unknown): url is string {
     return false;
   }
 
-  // Block javascript: and data: URLs
+  // Check length first
+  if (url.length > VALIDATION_LIMITS.MAX_URL_LENGTH) {
+    return false;
+  }
+
   const trimmed = url.trim();
-  if (trimmed.toLowerCase().startsWith("javascript:") ||
-      trimmed.toLowerCase().startsWith("data:") ||
-      trimmed.toLowerCase().startsWith("vbscript:")) {
+  const lowerUrl = trimmed.toLowerCase(); // Calculate once
+
+  // Block dangerous URL protocols
+  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:'];
+  if (dangerousProtocols.some(proto => lowerUrl.startsWith(proto))) {
     return false;
   }
 
@@ -63,7 +84,7 @@ function isValidUrl(url: unknown): url is string {
  * Validate and sanitize string input to prevent injection
  * SECURITY: Blocks dangerous patterns while allowing legitimate content
  */
-function isValidString(value: unknown, maxLength = 10000): value is string {
+function isValidString(value: unknown, maxLength = VALIDATION_LIMITS.MAX_STRING_LENGTH): value is string {
   if (typeof value !== "string") {
     return false;
   }
@@ -109,7 +130,7 @@ function isValidArrayOf<T>(
     return false;
   }
   // Validate all elements (limit check for performance on large arrays)
-  const maxItemsToCheck = 1000;
+  const maxItemsToCheck = VALIDATION_LIMITS.MAX_ARRAY_VALIDATION_ITEMS;
   const itemsToCheck = Math.min(value.length, maxItemsToCheck);
 
   for (let i = 0; i < itemsToCheck; i++) {
@@ -140,7 +161,7 @@ function isValidArrayOf<T>(
  * Validate object input (non-null, non-array)
  * SECURITY: Protects against prototype pollution
  */
-function isValidObject(value: unknown, maxDepth = 10): value is Record<string, unknown> {
+function isValidObject(value: unknown, maxDepth: number = VALIDATION_LIMITS.MAX_OBJECT_DEPTH): value is Record<string, unknown> {
   // Basic type check
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
@@ -243,7 +264,10 @@ function validateRawRegistry(raw: unknown): RawRegistry {
   for (const key of Object.keys(raw)) {
     if (!expectedKeys.has(key)) {
       // Log warning but don't fail - be tolerant
-      console.warn(`[SourceRegistry] Unexpected field in registry: ${key}`);
+      logger.warn(`Unexpected field in registry: ${key}`, {
+        field: key,
+        expectedFields: Array.from(expectedKeys),
+      });
     }
   }
 

@@ -23,4 +23,12 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ["vitest.config.ts", "**/*.test.ts", "**/*.test.tsx", "src/test/**/*.ts"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 );

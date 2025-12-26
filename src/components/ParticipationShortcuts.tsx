@@ -8,11 +8,13 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Users, Vote, FileText, ExternalLink, Link2 } from "lucide-react";
+import { Calendar, Users, Vote, FileText, ExternalLink, Link2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { sourceRegistryService } from "@/data/sourceRegistryService";
+import { logger } from "@/utils/logger";
 import { cn } from "@/lib/utils";
 import { HEARING_SCHEDULE_URL, LAI_URL, TRANSPARENCY_PORTAL_URL } from "@/constants/urls";
 
@@ -34,10 +36,12 @@ const iconMap = {
 export function ParticipationShortcuts({ className }: { className?: string }) {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadShortcuts() {
       try {
+        setError(null); // Reset error on new attempt
         const registryShortcuts = await sourceRegistryService.getShortcuts();
 
         const shortcutData: Shortcut[] = [
@@ -71,9 +75,10 @@ export function ParticipationShortcuts({ className }: { className?: string }) {
 
         setShortcuts(shortcutData);
       } catch (error) {
-        console.error("Failed to load shortcuts:", error);
+        logger.error("Failed to load shortcuts", error);
+        setError("Não foi possível carregar os atalhos de participação");
 
-        // Fallback shortcuts
+        // Still set fallback shortcuts
         setShortcuts([
           {
             iconName: "calendar",
@@ -121,52 +126,63 @@ export function ParticipationShortcuts({ className }: { className?: string }) {
   }
 
   return (
-    <div className={cn("grid grid-cols-2 md:grid-cols-4 gap-3", className)}>
-      {shortcuts.map((shortcut) => {
-        const Icon = iconMap[shortcut.iconName];
+    <div className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro ao carregar atalhos</AlertTitle>
+          <AlertDescription>
+            {error}. Alguns links oficiais ainda estão disponíveis abaixo.
+          </AlertDescription>
+        </Alert>
+      )}
+      <div className={cn("grid grid-cols-2 md:grid-cols-4 gap-3", className)}>
+        {shortcuts.map((shortcut) => {
+          const Icon = iconMap[shortcut.iconName];
 
-        if (shortcut.disabled) {
-          return (
-            <div
-              key={shortcut.label}
-              className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 opacity-60"
-            >
-              <Icon className="w-6 h-6 text-muted-foreground mb-2" />
-              <span className="text-sm font-medium text-muted-foreground text-center">
-                {shortcut.label}
-              </span>
-              <span className="text-xs text-muted-foreground text-center mt-1">
-                Não encontrado
-              </span>
-            </div>
-          );
-        }
-
-        return (
-          <Button
-            key={shortcut.label}
-            variant="outline"
-            asChild
-            className="h-auto flex-col items-center justify-center py-4 px-3 gap-2 hover:bg-primary/5 hover:border-primary/20 group"
-          >
-            <a
-              href={shortcut.url || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col items-center"
-            >
-              <Icon className="w-6 h-6 text-primary mb-1 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-semibold text-center">
-                {shortcut.label}
-              </span>
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <span>Link oficial</span>
-                <ExternalLink className="w-3 h-3" />
+          if (shortcut.disabled) {
+            return (
+              <div
+                key={shortcut.label}
+                className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 opacity-60"
+              >
+                <Icon className="w-6 h-6 text-muted-foreground mb-2" />
+                <span className="text-sm font-medium text-muted-foreground text-center">
+                  {shortcut.label}
+                </span>
+                <span className="text-xs text-muted-foreground text-center mt-1">
+                  Não encontrado
+                </span>
               </div>
-            </a>
-          </Button>
-        );
-      })}
+            );
+          }
+
+          return (
+            <Button
+              key={shortcut.label}
+              variant="outline"
+              asChild
+              className="h-auto flex-col items-center justify-center py-4 px-3 gap-2 hover:bg-primary/5 hover:border-primary/20 group"
+            >
+              <a
+                href={shortcut.url || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center"
+              >
+                <Icon className="w-6 h-6 text-primary mb-1 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold text-center">
+                  {shortcut.label}
+                </span>
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <span>Link oficial</span>
+                  <ExternalLink className="w-3 h-3" />
+                </div>
+              </a>
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }

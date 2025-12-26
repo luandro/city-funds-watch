@@ -19,6 +19,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  RefreshCw,
   Search,
   Filter,
   X,
@@ -31,11 +32,81 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { sourceRegistryService } from "@/data/sourceRegistryService";
-import { RegistrySection, RegistryLink, RegistryGap } from "@/data/sourceRegistryTypes";
+import { RegistrySection, RegistryLink, RegistryGap, SourceRegistry, LinkVerificationStatus } from "@/data/sourceRegistryTypes";
 import { cn } from "@/lib/utils";
 import { LAI_URL } from "@/constants/urls";
+import { logger } from "@/utils/logger";
 
-const sectionIcons: Record<string, typeof Building2> = {
+// Add stricter type for section letters
+type SectionLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
+
+/**
+ * DataFreshness Component
+ * Shows how old the data is with color-coded indicator
+ */
+function DataFreshness({ timestamp }: { timestamp: string }) {
+  const [age, setAge] = useState<number>(0);
+
+  useEffect(() => {
+    const updateAge = () => {
+      const now = Date.now();
+      const loadTime = new Date(timestamp).getTime();
+      const ageMs = now - loadTime;
+      setAge(ageMs);
+    };
+
+    updateAge();
+    const interval = setInterval(updateAge, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [timestamp]);
+
+  const formatAge = (ms: number): string => {
+    const minutes = Math.floor(ms / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days} dia${days > 1 ? 's' : ''}`;
+    if (hours > 0) return `${hours} hora${hours > 1 ? 's' : ''}`;
+    if (minutes > 0) return `${minutes} minuto${minutes > 1 ? 's' : ''}`;
+    return 'agora';
+  };
+
+  const getVariant = (ms: number): "default" | "secondary" | "destructive" => {
+    const hours = ms / (1000 * 60 * 60);
+    if (hours > 24) return "destructive"; // Stale
+    if (hours > 6) return "secondary"; // Getting old
+    return "default"; // Fresh
+  };
+
+  return (
+    <Badge variant={getVariant(age)} className="text-xs">
+      <Clock className="w-3 h-3 mr-1" />
+      Atualizado há {formatAge(age)}
+    </Badge>
+  );
+}
+
+/**
+ * RefreshButton Component
+ * Manual refresh button for the registry
+ */
+function RefreshButton({ onRefresh, loading }: { onRefresh: () => void; loading: boolean }) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onRefresh}
+      disabled={loading}
+      className="gap-2"
+    >
+      <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+      {loading ? "Atualizando..." : "Atualizar"}
+    </Button>
+  );
+}
+
+const sectionIcons: Record<SectionLetter, typeof Building2> = {
   A: Building2,
   B: FileText,
   C: Calendar,
@@ -47,7 +118,7 @@ const sectionIcons: Record<string, typeof Building2> = {
   I: Users,
 };
 
-const sectionColors: Record<string, string> = {
+const sectionColors: Record<SectionLetter, string> = {
   A: "bg-blue-500",
   B: "bg-purple-500",
   C: "bg-green-500",
@@ -63,9 +134,12 @@ const sectionColors: Record<string, string> = {
  * Get icon for a section based on its tags or title
  */
 function getSectionIcon(section: RegistrySection) {
-  const letter = section.letter || "";
-  if (sectionIcons[letter]) return sectionIcons[letter];
+  const letter = section.letter as SectionLetter | undefined;
+  if (letter && letter in sectionIcons) {
+    return sectionIcons[letter];
+  }
 
+  // Fallback logic
   const tags = section.tags?.map(t => t.toLowerCase()) || [];
   const title = section.title.toLowerCase();
 
@@ -82,9 +156,12 @@ function getSectionIcon(section: RegistrySection) {
  * Get color for a section based on its letter or index
  */
 function getSectionColor(section: RegistrySection, index: number) {
-  const letter = section.letter || "";
-  if (sectionColors[letter]) return sectionColors[letter];
+  const letter = section.letter as SectionLetter | undefined;
+  if (letter && letter in sectionColors) {
+    return sectionColors[letter];
+  }
 
+  // Fallback array logic
   const colors = [
     "bg-blue-500",
     "bg-purple-500",
@@ -108,17 +185,26 @@ export default function Sources() {
   const [error, setError] = useState<string | null>(null);
   const [showHighImpactOnly, setShowHighImpactOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [metadata, setMetadata] = useState<{ loadedAtISO: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [sectionsData, gapsData] = await Promise.all([
-          sourceRegistryService.getSections(),
-          sourceRegistryService.getGaps(),
-        ]);
-
-        setSections(sectionsData);
-        setGaps(gapsData);
+        const registry = await sourceRegistryService.getRegistry();
+        setSections(registry.sections);
+        setGaps(registry.gaps);
+        setMetadata(registry.metadata);
         setLoading(false);
       } catch (err) {
         console.error("Failed to load sources:", err);
@@ -130,10 +216,28 @@ export default function Sources() {
     loadData();
   }, []);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setError(null); // Clear error state before retry
+    try {
+      const registry = await sourceRegistryService.getRegistry(true); // Force refresh
+      setSections(registry.sections);
+      setGaps(registry.gaps);
+      setMetadata(registry.metadata);
+      logger.info("Registry refreshed manually");
+    } catch (err) {
+      logger.error("Failed to refresh registry", err);
+      // Keep existing data, just show error
+      setError("Falha ao atualizar. Dados anteriores mantidos.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const filteredGaps = gaps.filter(gap => {
     if (showHighImpactOnly && gap.severity !== "high") return false;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedQuery) {
+      const query = debouncedQuery.toLowerCase();
       return (
         gap.title.toLowerCase().includes(query) ||
         gap.detail?.toLowerCase().includes(query)
@@ -160,12 +264,20 @@ export default function Sources() {
 
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold">
-            Fontes Oficiais
-          </h1>
-          <p className="text-muted-foreground">
-            Explore os canais oficiais de transparência e participação cidadã de Belo Horizonte
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                Fontes Oficiais
+              </h1>
+              <p className="text-muted-foreground">
+                Explore os canais oficiais de transparência e participação cidadã de Belo Horizonte
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {metadata && <DataFreshness timestamp={metadata.loadedAtISO} />}
+              <RefreshButton onRefresh={handleRefresh} loading={refreshing} />
+            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -277,12 +389,19 @@ export default function Sources() {
                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-sm"
                   />
                   {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                    >
-                      <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-8 top-1/2 -translate-y-1/2"
+                      >
+                        <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                      </button>
+                      {searchQuery !== debouncedQuery && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -296,6 +415,13 @@ export default function Sources() {
                   Alto impacto
                 </Button>
               </div>
+
+              {/* Result count */}
+              {debouncedQuery && (
+                <div className="text-sm text-muted-foreground">
+                  {filteredGaps.length} {filteredGaps.length === 1 ? "resultado" : "resultados"}
+                </div>
+              )}
 
               {/* Gaps List */}
               {filteredGaps.length === 0 ? (
@@ -463,6 +589,46 @@ function LinkCard({ link }: { link: RegistryLink }) {
     }
   };
 
+  const getVerificationBadge = () => {
+    if (!link.verificationStatus) return null;
+
+    const variants: Record<LinkVerificationStatus, {
+      variant: "default" | "secondary" | "destructive";
+      label: string;
+      icon: React.ReactNode;
+    }> = {
+      verified: {
+        variant: "default",
+        label: "Verificado",
+        icon: <CheckCircle2 className="w-3 h-3" />,
+      },
+      unverified: {
+        variant: "secondary",
+        label: "Não verificado",
+        icon: <Clock className="w-3 h-3" />,
+      },
+      broken: {
+        variant: "destructive",
+        label: "Link quebrado",
+        icon: <AlertCircle className="w-3 h-3" />,
+      },
+      redirected: {
+        variant: "secondary",
+        label: "Redirecionado",
+        icon: <ExternalLink className="w-3 h-3" />,
+      },
+    };
+
+    const config = variants[link.verificationStatus];
+
+    return (
+      <Badge variant={config.variant} className="text-xs gap-1">
+        {config.icon}
+        {config.label}
+      </Badge>
+    );
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -471,6 +637,11 @@ function LinkCard({ link }: { link: RegistryLink }) {
             <h4 className="font-semibold mb-1 truncate">{link.title}</h4>
             {link.description && (
               <p className="text-sm text-muted-foreground line-clamp-2">{link.description}</p>
+            )}
+            {link.verificationNotes && (
+              <p className="text-xs text-muted-foreground italic mt-1">
+                {link.verificationNotes}
+              </p>
             )}
           </div>
           <div className="flex gap-2">
@@ -485,13 +656,19 @@ function LinkCard({ link }: { link: RegistryLink }) {
             </Button>
           </div>
         </div>
-        {link.official && (
-          <div className="mt-2">
+        <div className="mt-2 flex items-center gap-2">
+          {link.official && (
             <Badge variant="secondary" className="text-xs">
               Fonte oficial
             </Badge>
-          </div>
-        )}
+          )}
+          {getVerificationBadge()}
+          {link.lastVerified && (
+            <span className="text-xs text-muted-foreground">
+              Verificado {new Date(link.lastVerified).toLocaleDateString('pt-BR')}
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

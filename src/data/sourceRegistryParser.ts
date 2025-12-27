@@ -525,6 +525,26 @@ function extractSections(data: RawRegistry): RegistrySection[] {
 }
 
 /**
+ * Map section letter to valid LinkKind default
+ * Maps each section (A-I) to its most relevant link category
+ */
+function mapSectionLetterToLinkKind(letter: string): LinkKind {
+  const mapping: Record<string, LinkKind> = {
+    "A": "structure",           // Administrative structure
+    "B": "legislation",         // Municipal legislation
+    "C": "planning",            // Budget cycle (PPA, LDO, LOA)
+    "D": "amendments",          // Budget amendments
+    "E": "accountability",      // Financial accountability reports
+    "F": "external_control",    // External control (TCE)
+    "G": "sector_plan",         // Sectoral plans
+    "H": "legislative",         // Legislative power
+    "I": "other",               // Social participation (varied)
+  };
+
+  return mapping[letter.toUpperCase()] || "other";
+}
+
+/**
  * Parse a single section
  * SECURITY: Validates all string fields before including in output
  */
@@ -540,7 +560,8 @@ function parseSection(
 
   // Recursively find all links in this section
   // We skip the top-level 'titulo' and 'descricao' to avoid creating self-links from metadata
-  const links = findAllLinks(raw, key, letter.toLowerCase() as LinkKind);
+  const defaultKind = mapSectionLetterToLinkKind(letter);
+  const links = findAllLinks(raw, key, defaultKind);
 
   // SECURITY: Validate notes before including
   const notes = isValidString(raw.nota) ? [raw.nota] : undefined;

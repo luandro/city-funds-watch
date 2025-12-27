@@ -11,11 +11,17 @@ import { TRANSPARENCY_PORTAL_URL, LAI_URL } from "@/constants/urls";
 import { DATA_SOURCE_URL } from "@/config/data-source";
 import { logger } from "@/utils/logger";
 
+/**
+ * Cache status tracking
+ */
+type CacheStatus = "fresh" | "stale" | "fallback";
+
 class SourceRegistryService {
   private cache: SourceRegistry | null = null;
   private loadPromise: Promise<SourceRegistry> | null = null;
   private error: Error | null = null;
   private cacheTimestamp: number | null = null;
+  private cacheStatus: CacheStatus = "fresh";
 
   /**
    * Fetch timeout in milliseconds
@@ -70,6 +76,7 @@ class SourceRegistryService {
         age: Date.now() - (this.cacheTimestamp || 0),
         ttl: this.CACHE_TTL,
       });
+      this.cacheStatus = "stale";
     }
 
     // Return existing promise if loading in progress
@@ -85,6 +92,7 @@ class SourceRegistryService {
       const registry = await this.loadPromise;
       this.cache = registry;
       this.cacheTimestamp = Date.now();
+      this.cacheStatus = "fresh"; // Successfully loaded
       logger.info("Registry loaded and cached successfully", {
         sections: registry.sections.length,
         links: registry.sections.reduce((sum, s) => sum + s.links.length, 0),
@@ -147,6 +155,7 @@ class SourceRegistryService {
     this.loadPromise = null;
     this.error = null;
     this.cacheTimestamp = null;
+    this.cacheStatus = "fresh"; // Reset to fresh state
     logger.debug("Registry cache cleared");
   }
 
@@ -276,6 +285,7 @@ class SourceRegistryService {
         url: DATA_SOURCE_URL,
       });
 
+      this.cacheStatus = "fallback"; // Using fallback data
       return this.createFallbackRegistry(error);
     }
   }
@@ -343,6 +353,20 @@ class SourceRegistryService {
    */
   getError(): Error | null {
     return this.error;
+  }
+
+  /**
+   * Check if currently using fallback data
+   */
+  isUsingFallback(): boolean {
+    return this.cacheStatus === "fallback";
+  }
+
+  /**
+   * Get current cache status
+   */
+  getCacheStatus(): CacheStatus {
+    return this.cacheStatus;
   }
 }
 

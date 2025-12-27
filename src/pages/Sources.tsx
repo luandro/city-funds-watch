@@ -188,6 +188,7 @@ export default function Sources() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [metadata, setMetadata] = useState<{ loadedAtISO: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -205,6 +206,7 @@ export default function Sources() {
         setSections(registry.sections);
         setGaps(registry.gaps);
         setMetadata(registry.metadata);
+        setUsingFallback(sourceRegistryService.isUsingFallback());
         setLoading(false);
       } catch (err) {
         logger.error("Failed to load sources", err);
@@ -224,6 +226,7 @@ export default function Sources() {
       setSections(registry.sections);
       setGaps(registry.gaps);
       setMetadata(registry.metadata);
+      setUsingFallback(sourceRegistryService.isUsingFallback());
       logger.info("Registry refreshed manually");
     } catch (err) {
       logger.error("Failed to refresh registry", err);
@@ -279,6 +282,18 @@ export default function Sources() {
             </div>
           </div>
         </div>
+
+        {/* Fallback Warning Banner */}
+        {usingFallback && !loading && (
+          <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+            <AlertTitle className="text-yellow-800 dark:text-yellow-400">Dados limitados disponíveis</AlertTitle>
+            <AlertDescription className="text-yellow-700 dark:text-yellow-500">
+              Não foi possível carregar o registro completo. Estamos mostrando fontes oficiais básicas.
+              Tente atualizar a página ou use o botão "Atualizar" para tentar novamente.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

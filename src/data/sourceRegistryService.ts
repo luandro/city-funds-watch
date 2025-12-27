@@ -92,11 +92,15 @@ class SourceRegistryService {
       const registry = await this.loadPromise;
       this.cache = registry;
       this.cacheTimestamp = Date.now();
-      this.cacheStatus = "fresh"; // Successfully loaded
+      // Only set status to fresh if not already using fallback data
+      if (this.cacheStatus !== "fallback") {
+        this.cacheStatus = "fresh";
+      }
       logger.info("Registry loaded and cached successfully", {
         sections: registry.sections.length,
         links: registry.sections.reduce((sum, s) => sum + s.links.length, 0),
         gaps: registry.gaps.length,
+        status: this.cacheStatus,
       });
       return registry;
     } catch (err) {

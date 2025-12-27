@@ -188,7 +188,7 @@ export default function Sources() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [metadata, setMetadata] = useState<{ loadedAtISO: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [usingFallback, setUsingFallback] = useState(false);
+  const [cacheStatus, setCacheStatus] = useState<"fresh" | "stale" | "fallback">("fresh");
 
   // Debounce search query
   useEffect(() => {
@@ -206,7 +206,7 @@ export default function Sources() {
         setSections(registry.sections);
         setGaps(registry.gaps);
         setMetadata(registry.metadata);
-        setUsingFallback(sourceRegistryService.isUsingFallback());
+        setCacheStatus(sourceRegistryService.getCacheStatus());
         setLoading(false);
       } catch (err) {
         logger.error("Failed to load sources", err);
@@ -226,7 +226,7 @@ export default function Sources() {
       setSections(registry.sections);
       setGaps(registry.gaps);
       setMetadata(registry.metadata);
-      setUsingFallback(sourceRegistryService.isUsingFallback());
+      setCacheStatus(sourceRegistryService.getCacheStatus());
       logger.info("Registry refreshed manually");
     } catch (err) {
       logger.error("Failed to refresh registry", err);
@@ -283,14 +283,35 @@ export default function Sources() {
           </div>
         </div>
 
-        {/* Fallback Warning Banner */}
-        {usingFallback && !loading && (
-          <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
-            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-            <AlertTitle className="text-yellow-800 dark:text-yellow-400">Dados limitados disponíveis</AlertTitle>
-            <AlertDescription className="text-yellow-700 dark:text-yellow-500">
-              Não foi possível carregar o registro completo. Estamos mostrando fontes oficiais básicas.
-              Tente atualizar a página ou use o botão "Atualizar" para tentar novamente.
+        {/* Degraded Data Warning Banner */}
+        {(cacheStatus === "stale" || cacheStatus === "fallback") && !loading && (
+          <Alert variant="default" className={
+            cacheStatus === "fallback"
+              ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+              : "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
+          }>
+            <AlertCircle className={`h-4 w-4 ${
+              cacheStatus === "fallback"
+                ? "text-yellow-600 dark:text-yellow-500"
+                : "text-blue-600 dark:text-blue-500"
+            }`} />
+            <AlertTitle className={
+              cacheStatus === "fallback"
+                ? "text-yellow-800 dark:text-yellow-400"
+                : "text-blue-800 dark:text-blue-400"
+            }>
+              {cacheStatus === "fallback"
+                ? "Dados limitados disponíveis"
+                : "Dados desatualizados"}
+            </AlertTitle>
+            <AlertDescription className={
+              cacheStatus === "fallback"
+                ? "text-yellow-700 dark:text-yellow-500"
+                : "text-blue-700 dark:text-blue-500"
+            }>
+              {cacheStatus === "fallback"
+                ? "Não foi possível carregar o registro completo. Estamos mostrando fontes oficiais básicas. Tente atualizar a página ou use o botão \"Atualizar\" para tentar novamente."
+                : "Os dados exibidos podem não estar atualizados. Última tentativa de atualização falhou, mas estamos mostrando a última versão bem-sucedida. O sistema tentará novamente em breve."}
             </AlertDescription>
           </Alert>
         )}

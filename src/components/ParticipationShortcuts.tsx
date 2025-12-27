@@ -37,14 +37,14 @@ export function ParticipationShortcuts({ className }: { className?: string }) {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [usingFallback, setUsingFallback] = useState(false);
+  const [usingDegradedData, setUsingDegradedData] = useState(false);
 
   useEffect(() => {
     async function loadShortcuts() {
       try {
         setError(null); // Reset error on new attempt
         const registryShortcuts = await sourceRegistryService.getShortcuts();
-        setUsingFallback(sourceRegistryService.isUsingFallback());
+        setUsingDegradedData(sourceRegistryService.isUsingDegradedData());
 
         const shortcutData: Shortcut[] = [
           {
@@ -129,7 +129,7 @@ export function ParticipationShortcuts({ className }: { className?: string }) {
 
   return (
     <div className="space-y-4">
-      {usingFallback && !loading && (
+      {usingDegradedData && !loading && (
         <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
           <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
           <AlertTitle className="text-yellow-800 dark:text-yellow-400">Dados limitados</AlertTitle>

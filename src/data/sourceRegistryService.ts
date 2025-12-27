@@ -18,9 +18,11 @@ type CacheStatus = "fresh" | "stale" | "fallback";
 
 class SourceRegistryService {
   private cache: SourceRegistry | null = null;
+  private lastKnownGoodCache: SourceRegistry | null = null;
   private loadPromise: Promise<SourceRegistry> | null = null;
   private error: Error | null = null;
   private cacheTimestamp: number | null = null;
+  private lastKnownGoodTimestamp: number | null = null;
   private cacheStatus: CacheStatus = "fresh";
 
   /**
@@ -29,10 +31,21 @@ class SourceRegistryService {
   private readonly FETCH_TIMEOUT = 10000; // 10 seconds
 
   /**
-   * Cache time-to-live in milliseconds
+   * Normal cache time-to-live in milliseconds
    * After this duration, the cache is considered stale and will be refreshed
    */
   private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+  /**
+   * Shorter TTL when in fallback or stale mode (minutes)
+   * This allows quicker retry attempts when serving degraded data
+   */
+  private readonly DEGRADED_TTL = 1000 * 60 * 10; // 10 minutes
+
+  /**
+   * Maximum age for last-known-good data before falling back to minimal registry (hours)
+   */
+  private readonly STALE_DATA_MAX_AGE = 1000 * 60 * 60 * 24; // 24 hours
 
   /**
    * Retry configuration
@@ -46,6 +59,7 @@ class SourceRegistryService {
 
   /**
    * Check if cache is valid (not expired)
+   * Uses shorter TTL when in degraded modes (fallback/stale) for faster retries
    */
   private isCacheValid(): boolean {
     if (!this.cache || !this.cacheTimestamp) {
@@ -54,7 +68,26 @@ class SourceRegistryService {
 
     const now = Date.now();
     const age = now - this.cacheTimestamp;
-    return age < this.CACHE_TTL;
+
+    // Use shorter TTL when serving degraded data
+    const ttl = (this.cacheStatus === "fallback" || this.cacheStatus === "stale")
+      ? this.DEGRADED_TTL
+      : this.CACHE_TTL;
+
+    return age < ttl;
+  }
+
+  /**
+   * Check if last-known-good data is available and not too old
+   */
+  private hasValidLastKnownGood(): boolean {
+    if (!this.lastKnownGoodCache || !this.lastKnownGoodTimestamp) {
+      return false;
+    }
+
+    const now = Date.now();
+    const age = now - this.lastKnownGoodTimestamp;
+    return age < this.STALE_DATA_MAX_AGE;
   }
 
   /**
@@ -90,12 +123,15 @@ class SourceRegistryService {
 
     try {
       const registry = await this.loadPromise;
+
+      // Success: update both caches and set to fresh
       this.cache = registry;
+      this.lastKnownGoodCache = registry;
       this.cacheTimestamp = Date.now();
-      // Only set status to fresh if not already using fallback data
-      if (this.cacheStatus !== "fallback") {
-        this.cacheStatus = "fresh";
-      }
+      this.lastKnownGoodTimestamp = Date.now();
+      this.cacheStatus = "fresh"; // Successful fetch always sets to fresh
+      this.error = null; // Clear any previous error
+
       logger.info("Registry loaded and cached successfully", {
         sections: registry.sections.length,
         links: registry.sections.reduce((sum, s) => sum + s.links.length, 0),
@@ -105,7 +141,26 @@ class SourceRegistryService {
       return registry;
     } catch (err) {
       this.error = err as Error;
-      throw err;
+
+      // On error, check if we have valid last-known-good data to serve
+      if (this.hasValidLastKnownGood()) {
+        logger.warn("Registry load failed, serving stale data", {
+          error: err instanceof Error ? err.message : String(err),
+          lastKnownGoodAge: Date.now() - (this.lastKnownGoodTimestamp || 0),
+        });
+        this.cache = this.lastKnownGoodCache;
+        this.cacheTimestamp = Date.now();
+        this.cacheStatus = "stale";
+        return this.lastKnownGoodCache;
+      }
+
+      // No valid stale data, create and serve minimal fallback
+      logger.error("Registry load failed with no stale data available, using minimal fallback", err);
+      const fallbackRegistry = this.createFallbackRegistry(err as Error);
+      this.cache = fallbackRegistry;
+      this.cacheTimestamp = Date.now();
+      this.cacheStatus = "fallback";
+      return fallbackRegistry;
     } finally {
       this.loadPromise = null;
     }
@@ -156,9 +211,11 @@ class SourceRegistryService {
    */
   clearCache(): void {
     this.cache = null;
+    this.lastKnownGoodCache = null;
     this.loadPromise = null;
     this.error = null;
     this.cacheTimestamp = null;
+    this.lastKnownGoodTimestamp = null;
     this.cacheStatus = "fresh"; // Reset to fresh state
     logger.debug("Registry cache cleared");
   }
@@ -221,6 +278,7 @@ class SourceRegistryService {
 
   /**
    * Load and parse the JSON file with retry logic
+   * Throws error on final failure (does not return fallback registry)
    */
   private async loadAndParse(attemptNumber = 1): Promise<SourceRegistry> {
     const controller = new AbortController();
@@ -282,15 +340,14 @@ class SourceRegistryService {
         return this.loadAndParse(attemptNumber + 1);
       }
 
-      // No more retries, log final error
+      // No more retries, throw error for caller to handle
       logger.error("Registry load failed after all retries", error, {
         attempts: attemptNumber,
         maxRetries: this.RETRY_CONFIG.maxRetries,
         url: DATA_SOURCE_URL,
       });
 
-      this.cacheStatus = "fallback"; // Using fallback data
-      return this.createFallbackRegistry(error);
+      throw error; // Throw error instead of returning fallback
     }
   }
 

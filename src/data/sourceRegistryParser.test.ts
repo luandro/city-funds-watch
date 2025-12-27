@@ -373,4 +373,100 @@ describe('sourceRegistryParser', () => {
       expect(result.gaps[0].status).toBe('needs_verification');
     });
   });
+
+  describe('Gap Detection from Section Arrays', () => {
+    it('should detect gaps from planos array with nao_localizado status', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          planos: [
+            {
+              id: 'plano-1',
+              titulo: 'Plano Municipal de Saúde',
+              status: 'nao_localizado',
+              recomendacao: 'Criar plano com metas e cronograma',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps).toHaveLength(1);
+      expect(result.gaps[0].title).toBe('Plano Municipal de Saúde');
+      expect(result.gaps[0].status).toBe('missing');
+      expect(result.gaps[0].detail).toBe('Criar plano com metas e cronograma');
+    });
+
+    it('should detect gaps from multiple arrays (planos, relatorios, tipos_proposicoes)', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          planos: [
+            {
+              id: 'ppa-1',
+              titulo: 'Plano Plurianual',
+              encontrado: false,
+            },
+          ],
+          relatorios: [
+            {
+              id: 'rreo-1',
+              titulo: 'Rreo',
+              status: 'nao_identificadas',
+            },
+          ],
+        },
+        secao_h_poder_legislativo: {
+          titulo: 'Poder Legislativo',
+          tipos_proposicoes: [
+            {
+              id: 'projeto-1',
+              nome: 'Projetos de Lei',
+              status: 'nao_localizado',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps).toHaveLength(3);
+
+      const ppaGap = result.gaps.find(g => g.title === 'Plano Plurianual');
+      expect(ppaGap).toBeDefined();
+      expect(ppaGap?.status).toBe('missing');
+
+      const rreoGap = result.gaps.find(g => g.title === 'Rreo');
+      expect(rreoGap).toBeDefined();
+      expect(rreoGap?.status).toBe('missing');
+
+      const projetoGap = result.gaps.find(g => g.title === 'Projetos de Lei');
+      expect(projetoGap).toBeDefined();
+      expect(projetoGap?.status).toBe('missing');
+    });
+
+    it('should not create gaps for items with valid status', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          planos: [
+            {
+              id: 'plano-1',
+              titulo: 'Plano Municipal de Educação',
+              url: 'https://educacao.pbh.gov.br/plano',
+            },
+          ],
+          relatorios: [
+            {
+              id: 'rel-1',
+              titulo: 'Relatório Anual',
+              status: 'disponivel',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps).toHaveLength(0);
+    });
+  });
 });

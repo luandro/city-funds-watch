@@ -727,6 +727,9 @@ function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, ga
   const arraysToScan = [
     section.documentos,
     section.plans,
+    section.planos,
+    section.relatorios,
+    section.tipos_proposicoes,
     section.conselhos,
   ];
 

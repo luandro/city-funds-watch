@@ -869,7 +869,14 @@ function extractDescriptionFromObject(obj: Record<string, unknown>): string | un
 function extractTags(section: RawRegistrySection): string[] | undefined {
   const tags: string[] = [];
 
-  if (section.tags) return section.tags;
+  // SECURITY: Validate tags are strings before returning to prevent
+  // runtime errors in getSectionIcon() which calls .toLowerCase()
+  if (section.tags && isValidArray(section.tags)) {
+    const validTags = section.tags.filter((tag) => isValidString(tag));
+    if (validTags.length > 0) {
+      return validTags;
+    }
+  }
 
   // Derive tags from title/description
   const title = (section.titulo || "").toLowerCase();

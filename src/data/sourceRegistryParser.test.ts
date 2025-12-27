@@ -469,4 +469,88 @@ describe('sourceRegistryParser', () => {
       expect(result.gaps).toHaveLength(0);
     });
   });
+
+  describe('Tag Validation', () => {
+    it('should filter out non-string tag values', () => {
+      const invalidTags = [
+        123,
+        null,
+        undefined,
+        { nested: 'object' },
+        ['array'],
+        true,
+      ] as unknown[];
+
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          descricao: 'Canais de participação cidadã',
+          tags: [
+            'saúde',
+            'educação',
+            ...(invalidTags as string[]),
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+
+      const participationSection = result.sections.find(s => s.id === 'secao_i_participacao_social');
+      expect(participationSection).toBeDefined();
+      expect(participationSection?.tags).toEqual(['saúde', 'educação']);
+    });
+
+    it('should handle sections with all invalid tag values', () => {
+      const invalidTags = [123, null, undefined, { invalid: 'object' }] as unknown[];
+
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          tags: invalidTags as string[],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+
+      const participationSection = result.sections.find(s => s.id === 'secao_i_participacao_social');
+      expect(participationSection).toBeDefined();
+      expect(participationSection?.tags).toBeUndefined();
+    });
+
+    it('should derive tags when section.tags contains only invalid values', () => {
+      const invalidTags = [123, null] as unknown[];
+
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Canais de participação e saúde',
+          descricao: 'Conselhos de educação e saúde',
+          tags: invalidTags as string[],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+
+      const participationSection = result.sections.find(s => s.id === 'secao_i_participacao_social');
+      expect(participationSection).toBeDefined();
+      // Should derive tags from title/description
+      expect(participationSection?.tags).toContain('saúde');
+      expect(participationSection?.tags).toContain('educação');
+    });
+
+    it('should handle missing tags field gracefully', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          descricao: 'Conselhos e orçamento',
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+
+      const participationSection = result.sections.find(s => s.id === 'secao_i_participacao_social');
+      expect(participationSection).toBeDefined();
+      // Should derive "orçamento" from description
+      expect(participationSection?.tags).toContain('orçamento');
+    });
+  });
 });

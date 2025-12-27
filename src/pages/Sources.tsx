@@ -207,7 +207,7 @@ export default function Sources() {
         setMetadata(registry.metadata);
         setLoading(false);
       } catch (err) {
-        console.error("Failed to load sources:", err);
+        logger.error("Failed to load sources", err);
         setError("Falha ao carregar fontes oficiais");
         setLoading(false);
       }
@@ -585,7 +585,7 @@ function LinkCard({ link }: { link: RegistryLink }) {
       await navigator.clipboard.writeText(link.url);
       setCopied(true);
     } catch (err) {
-      console.error("Failed to copy:", err);
+      logger.error("Failed to copy link to clipboard", err);
     }
   };
 

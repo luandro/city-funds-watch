@@ -5,11 +5,11 @@
  * Covers: caching, retry logic, fallback, error handling, and data access.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { sourceRegistryService } from './sourceRegistryService';
-import type { SourceRegistry } from './sourceRegistryTypes';
 
 // Mock fetch globally
+const originalFetch = global.fetch;
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -28,6 +28,14 @@ vi.mock('@/config/data-source', () => ({
   DATA_SOURCE_URL: 'https://example.com/registry.json',
 }));
 
+const createAbortError = () => {
+  const error = new Error('Aborted');
+  error.name = 'AbortError';
+  return error;
+};
+
+const createNonRetryableError = () => new Error('Failed to load registry: 404 Not Found');
+
 describe('sourceRegistryService', () => {
   beforeEach(() => {
     // Clear cache before each test
@@ -39,40 +47,22 @@ describe('sourceRegistryService', () => {
     vi.restoreAllMocks();
   });
 
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
   describe('getRegistry', () => {
-    const mockRegistry: SourceRegistry = {
+    const mockRawRegistry = {
       metadata: {
-        loadedAtISO: new Date().toISOString(),
-        municipality: 'Belo Horizonte',
-        state: 'Minas Gerais',
-        version: '1.0',
+        municipio: 'Belo Horizonte',
+        estado: 'Minas Gerais',
+        versao_dossiê: '1.0',
       },
-      sections: [
-        {
-          id: 'secao_i_participacao_social',
-          title: 'Participação Social',
-          letter: 'I',
-          description: 'Canais de participação',
-          links: [],
-        },
-      ],
-      globalLinks: [
-        {
-          id: 'global-transparency',
-          title: 'Portal da Transparência',
+      secao_i_participacao_social: {
+        titulo: 'Participação Social',
+        descricao: 'Canais de participação',
+        portal_transparencia: {
           url: 'https://transparencia.pbh.gov.br',
-          kind: 'transparency',
-          official: true,
-        },
-      ],
-      gaps: [],
-      shortcuts: {
-        transparencyPortal: {
-          id: 'global-transparency',
-          title: 'Portal da Transparência',
-          url: 'https://transparencia.pbh.gov.br',
-          kind: 'transparency',
-          official: true,
         },
       },
     };
@@ -80,22 +70,22 @@ describe('sourceRegistryService', () => {
     it('should load and parse registry successfully', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockRegistry,
+        json: async () => mockRawRegistry,
       });
 
       const result = await sourceRegistryService.getRegistry();
 
       expect(result).toBeDefined();
       expect(result.metadata.municipality).toBe('Belo Horizonte');
-      // Sections are parsed from raw JSON, so empty sections won't appear
-      expect(result.sections.length).toBeGreaterThanOrEqual(0);
+      expect(result.sections.length).toBe(1);
+      expect(result.sections[0].id).toBe('secao_i_participacao_social');
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it('should cache the registry after first load', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockRegistry,
+        json: async () => mockRawRegistry,
       });
 
       // First call
@@ -110,7 +100,7 @@ describe('sourceRegistryService', () => {
     it('should force refresh when requested', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => mockRegistry,
+        json: async () => mockRawRegistry,
       });
 
       // First load
@@ -123,7 +113,7 @@ describe('sourceRegistryService', () => {
     });
 
     it('should create fallback registry on fetch failure', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
 
       const result = await sourceRegistryService.getRegistry();
 
@@ -137,11 +127,11 @@ describe('sourceRegistryService', () => {
     it('should retry on retryable errors', async () => {
       // Fail twice, then succeed
       mockFetch
-        .mockRejectedValueOnce(new Error('AbortError'))
-        .mockRejectedValueOnce(new Error('AbortError'))
+        .mockRejectedValueOnce(createAbortError())
+        .mockRejectedValueOnce(createAbortError())
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockRegistry,
+          json: async () => mockRawRegistry,
         });
 
       const result = await sourceRegistryService.getRegistry();
@@ -152,7 +142,7 @@ describe('sourceRegistryService', () => {
     });
 
     it('should not retry on non-retryable errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Failed to load registry: 404 Not Found'));
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
 
       const result = await sourceRegistryService.getRegistry();
 
@@ -162,10 +152,31 @@ describe('sourceRegistryService', () => {
     });
 
     it('should timeout after FETCH_TIMEOUT', async () => {
-      // Skip fake timers test as it's causing timeouts
-      // The actual timeout logic is tested by the retry tests
-      expect(true).toBe(true);
-    }, 100);
+      vi.useFakeTimers();
+
+      mockFetch.mockImplementation((_url: string, init?: RequestInit) => new Promise((_, reject) => {
+        const signal = init?.signal;
+        if (signal?.aborted) {
+          reject(createAbortError());
+          return;
+        }
+        signal?.addEventListener('abort', () => reject(createAbortError()), { once: true });
+      }));
+
+      const promise = sourceRegistryService.getRegistry();
+
+      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(10000);
+
+      const result = await promise;
+
+      expect(result.globalLinks[0].id).toBe('fallback-transparency');
+
+      vi.useRealTimers();
+    });
   });
 
   describe('getSections', () => {
@@ -366,7 +377,7 @@ describe('sourceRegistryService', () => {
       // Clear cache first to ensure clean state
       sourceRegistryService.clearCache();
 
-      const error = new Error('Network error');
+      const error = createNonRetryableError();
       mockFetch.mockRejectedValueOnce(error);
 
       // Service should return fallback registry instead of throwing
@@ -387,7 +398,7 @@ describe('sourceRegistryService', () => {
       mockFetch.mockImplementation(() => {
         attemptCount++;
         if (attemptCount < 3) {
-          return Promise.reject(new Error('AbortError'));
+          return Promise.reject(createAbortError());
         }
         return Promise.resolve({
           ok: true,
@@ -413,7 +424,7 @@ describe('sourceRegistryService', () => {
     it('should stop retrying after max attempts', async () => {
       vi.useFakeTimers();
 
-      mockFetch.mockRejectedValue(new Error('AbortError'));
+      mockFetch.mockRejectedValue(createAbortError());
 
       const promise = sourceRegistryService.getRegistry();
 
@@ -433,7 +444,7 @@ describe('sourceRegistryService', () => {
 
   describe('Fallback Registry', () => {
     it('should include essential links in fallback', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
 
       const result = await sourceRegistryService.getRegistry();
 
@@ -443,7 +454,7 @@ describe('sourceRegistryService', () => {
     });
 
     it('should include shortcuts in fallback', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
 
       const result = await sourceRegistryService.getRegistry();
 
@@ -452,7 +463,7 @@ describe('sourceRegistryService', () => {
     });
 
     it('should have empty sections and gaps in fallback', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
 
       const result = await sourceRegistryService.getRegistry();
 

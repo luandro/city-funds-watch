@@ -20,9 +20,3 @@ const REGISTRY_FILE = "BH-dados-publicos.json";
 export const DATA_SOURCE_URL =
   import.meta.env.VITE_DATA_SOURCE_URL ||
   `${BASE_URL}${REGISTRY_FILE}`;
-
-/**
- * Enable/disable external data source
- * Set to true to force using external URL even if local file exists
- */
-export const FORCE_EXTERNAL_SOURCE = import.meta.env.VITE_FORCE_EXTERNAL_SOURCE === "true";

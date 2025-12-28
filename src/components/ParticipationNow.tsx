@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { sourceRegistryService } from "@/data/sourceRegistryService";
 import { HEARING_SCHEDULE_URL } from "@/constants/urls";
+import { logger } from "@/utils/logger";
 
 interface ParticipationNowProps {
   mode: LandingPageMode;
@@ -85,7 +86,7 @@ export function ParticipationNow({
           setScheduleUrl(shortcuts.hearingSchedule.url);
         }
       } catch (error) {
-        console.error("Failed to load schedule URL:", error);
+        logger.error("Failed to load schedule URL", error);
       }
     }
     loadScheduleUrl();

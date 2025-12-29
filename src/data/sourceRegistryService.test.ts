@@ -329,11 +329,15 @@ describe('sourceRegistryService', () => {
         }),
       });
 
+      const beforeLoad = Date.now();
       await sourceRegistryService.getRegistry();
+      const afterLoad = Date.now();
 
       const age = sourceRegistryService.getCacheAge();
+      expect(age).not.toBeNull();
       expect(age).toBeGreaterThanOrEqual(0);
-      expect(age).toBeLessThan(1000); // Should be very recent
+      // Allow reasonable upper bound based on actual test execution time
+      expect(age).toBeLessThanOrEqual(afterLoad - beforeLoad + 100);
     });
 
     it('should return null for cache age when not cached', () => {
@@ -354,7 +358,7 @@ describe('sourceRegistryService', () => {
       expect(sourceRegistryService.isCacheStale()).toBe(false);
     });
 
-    it('should report if cache is fresh', () => {
+    it('should report cache as stale when no cache exists', () => {
       expect(sourceRegistryService.isCacheStale()).toBe(true); // No cache
     });
 

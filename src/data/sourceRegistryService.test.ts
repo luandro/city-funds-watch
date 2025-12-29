@@ -475,4 +475,82 @@ describe('sourceRegistryService', () => {
       expect(result.gaps).toHaveLength(0);
     });
   });
+
+  describe('Stale Data Handling', () => {
+    it('should serve lastKnownGoodCache when fresh data fails', async () => {
+      const goodData = {
+        metadata: { municipio: 'Belo Horizonte' },
+        secao_i_participacao_social: {
+          titulo: 'Good Data',
+        },
+      };
+
+      // First load succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => goodData,
+      });
+
+      const firstResult = await sourceRegistryService.getRegistry();
+      expect(firstResult.sections[0].title).toBe('Good Data');
+
+      // Second load (force refresh) fails
+      mockFetch.mockRejectedValueOnce(new Error('Network failure'));
+
+      const secondResult = await sourceRegistryService.getRegistry(true);
+
+      // Should get lastKnownGoodCache
+      expect(secondResult.sections[0].title).toBe('Good Data');
+      expect(sourceRegistryService.isUsingDegradedData()).toBe(true);
+    });
+
+    it('should mark cache as degraded when using stale data', async () => {
+      const goodData = {
+        metadata: { municipio: 'Belo Horizonte' },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => goodData,
+      });
+
+      await sourceRegistryService.getRegistry();
+      expect(sourceRegistryService.isUsingDegradedData()).toBe(false);
+
+      // Force refresh fails
+      mockFetch.mockRejectedValueOnce(new Error('Network failure'));
+      await sourceRegistryService.getRegistry(true);
+
+      expect(sourceRegistryService.isUsingDegradedData()).toBe(true);
+    });
+
+    it('should handle concurrent getRegistry calls efficiently', async () => {
+      let fetchCallCount = 0;
+
+      mockFetch.mockImplementation(async () => {
+        fetchCallCount++;
+        // Simulate slow network
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return {
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        };
+      });
+
+      // Start 3 concurrent calls
+      const promise1 = sourceRegistryService.getRegistry();
+      const promise2 = sourceRegistryService.getRegistry();
+      const promise3 = sourceRegistryService.getRegistry();
+
+      const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
+
+      // All should get same data
+      expect(result1).toBeDefined();
+      expect(result2).toBeDefined();
+      expect(result3).toBeDefined();
+
+      // Should only fetch once (concurrent calls share promise)
+      expect(fetchCallCount).toBe(1);
+    });
+  });
 });

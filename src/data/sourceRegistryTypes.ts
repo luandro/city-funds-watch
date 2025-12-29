@@ -101,6 +101,7 @@ export interface SourceRegistry {
     version?: string;
     municipality?: string;
     state?: string;
+    compilationDate?: string;
   };
   sections: RegistrySection[];
   globalLinks: RegistryLink[];

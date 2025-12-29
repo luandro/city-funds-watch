@@ -290,12 +290,18 @@ export function parseSourceRegistry(raw: unknown): SourceRegistry {
   const data = validateRawRegistry(raw);
 
   // Extract metadata
+  const dataCompilacao = data.metadata?.data_compilacao;
+  const compilationDate = isValidString(dataCompilacao)
+    ? dataCompilacao
+    : new Date().toISOString().split('T')[0];
+
   const metadata = {
     loadedAtISO: new Date().toISOString(),
-    version: isValidString(data.metadata?.versao_dossiê) ? data.metadata?.versao_dossiê : 
+    version: isValidString(data.metadata?.versao_dossiê) ? data.metadata?.versao_dossiê :
              isValidString(data.metadata?.data_compilacao) ? data.metadata?.data_compilacao : undefined,
     municipality: isValidString(data.metadata?.municipio) ? data.metadata?.municipio : "Belo Horizonte",
     state: isValidString(data.metadata?.estado) ? data.metadata?.estado : "Minas Gerais",
+    compilationDate,
   };
 
   // Extract global links from portais_de_acesso

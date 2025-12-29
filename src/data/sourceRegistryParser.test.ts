@@ -1044,4 +1044,35 @@ describe('sourceRegistryParser', () => {
       expect(result.gaps[0].status).toBe('missing');
     });
   });
+
+  describe('Metadata: data_compilacao Fallback', () => {
+    it('should use data_compilacao when present', () => {
+      const valid = {
+        metadata: {
+          municipio: 'Test',
+          data_compilacao: '2024-01-15',
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.metadata.compilationDate).toBe('2024-01-15');
+    });
+
+    it('should generate current date when data_compilacao missing', () => {
+      const valid = {
+        metadata: {
+          municipio: 'Test',
+        },
+      };
+
+      const beforeParse = new Date().toISOString().split('T')[0];
+      const result = parseSourceRegistry(valid);
+      const afterParse = new Date().toISOString().split('T')[0];
+
+      // Should be today's date
+      expect(result.metadata.compilationDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      // Could be beforeParse or afterParse if test runs at midnight
+      expect([beforeParse, afterParse]).toContain(result.metadata.compilationDate);
+    });
+  });
 });

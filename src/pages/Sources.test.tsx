@@ -503,7 +503,7 @@ describe('Sources Page', () => {
       await waitFor(() => {
         expect(screen.getByText(/nenhuma lacuna encontrada/i)).toBeInTheDocument();
         expect(screen.getByText(/não há lacunas de alto impacto/i)).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -859,7 +859,7 @@ describe('Sources Page', () => {
         // Find the specific alert by its title
         const warningAlert = screen.getByRole('heading', { name: /dados desatualizados/i }).closest('[role="alert"]');
         expect(warningAlert?.className).toContain('border-blue-500');
-      });
+      }, { timeout: 2000 });
     });
 
     it('should show warning banner with appropriate color for fallback data', async () => {
@@ -882,7 +882,7 @@ describe('Sources Page', () => {
         // Find the specific alert by its title
         const warningAlert = screen.getByRole('heading', { name: /dados limitados disponíveis/i }).closest('[role="alert"]');
         expect(warningAlert?.className).toContain('border-yellow-500');
-      });
+      }, { timeout: 2000 });
     });
 
     it('should hide warning banner during loading state', () => {

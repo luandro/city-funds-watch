@@ -334,18 +334,18 @@ function extractGlobalLinks(data: RawRegistry): RegistryLink[] {
         continue;
       }
 
-      const urlCandidate = (portal as Record<string, unknown>).url_base ||
-                          (portal as Record<string, unknown>).url;
+      const portalObj = portal as Record<string, unknown>;
+      const url = extractUrlFromObject(portalObj);
 
-      // SECURITY: Validate URL before using
-      if (urlCandidate && isValidUrl(urlCandidate)) {
-        const nome = (portal as Record<string, unknown>).nome;
-        const descricao = (portal as Record<string, unknown>).descricao;
+      // SECURITY: URL already validated by extractUrlFromObject
+      if (url) {
+        const nome = portalObj.nome;
+        const descricao = portalObj.descricao;
 
         links.push({
           id: `global-${key}`,
           title: isValidString(nome) ? nome : key,
-          url: urlCandidate.trim(),
+          url,
           kind: inferLinkKind(key, isValidString(nome) ? nome : ""),
           description: isValidString(descricao) ? descricao : undefined,
           official: true,
@@ -776,7 +776,7 @@ function inferLinkKind(key: string, title: string): LinkKind {
   if (lowerKey.includes("diario") || lowerKey.includes("dom") || lowerTitle.includes("diário")) return "dom";
   if (lowerKey.includes("lai") || lowerKey.includes("esic") || lowerTitle.includes("acesso à informação")) return "lai";
   if (lowerKey.includes("ouvidoria") || lowerTitle.includes("ouvidoria")) return "ombudsman";
-  if (lowerKey.includes("op") || lowerTitle.includes("orçamento participativo")) return "op";
+  if (lowerKey.includes("orcamento_participativo") || lowerKey.includes("op") || lowerTitle.includes("orçamento participativo")) return "op";
   if (lowerKey.includes("conselho") || lowerTitle.includes("conselho")) return "council";
   if (lowerKey.includes("calendario") || lowerKey.includes("agenda") || lowerKey.includes("sessões")
     || lowerTitle.includes("calendário") || lowerTitle.includes("agenda")) return "schedule";

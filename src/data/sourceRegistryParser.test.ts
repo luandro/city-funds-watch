@@ -799,4 +799,249 @@ describe('sourceRegistryParser', () => {
       expect(result.globalLinks[0].description).toBe('Acesso à informação pública');
     });
   });
+
+  describe('Link Extraction: Alternative URL Fields', () => {
+    it('should extract URL from url_base field', () => {
+      const valid = {
+        portais_de_acesso: {
+          portal: {
+            url_base: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks).toHaveLength(1);
+      expect(result.globalLinks[0].url).toBe('https://example.com');
+    });
+
+    it('should extract URL from link field', () => {
+      const valid = {
+        portais_de_acesso: {
+          portal: {
+            link: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks).toHaveLength(1);
+      expect(result.globalLinks[0].url).toBe('https://example.com');
+    });
+
+    it('should prefer url over url_base when both present', () => {
+      const valid = {
+        portais_de_acesso: {
+          portal: {
+            url: 'https://primary.com',
+            url_base: 'https://secondary.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks).toHaveLength(1);
+      expect(result.globalLinks[0].url).toBe('https://primary.com');
+    });
+  });
+
+  describe('Link Extraction: Title Inference', () => {
+    it('should infer title from nome field', () => {
+      const valid: RawRegistry = {
+        portais_de_acesso: {
+          portal_transparencia: {
+            nome: 'Custom Name',
+            url: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks[0].title).toBe('Custom Name');
+    });
+
+    it('should infer title from titulo field', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section Title',
+          portal_transparencia: {
+            titulo: 'Custom Title',
+            url: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const link = result.sections[0].links.find(l => l.url === 'https://example.com');
+      expect(link?.title).toBe('Custom Title');
+    });
+
+    it('should fallback to humanized key when no title fields', () => {
+      const valid: RawRegistry = {
+        portais_de_acesso: {
+          portal_transparencia: {
+            url: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks[0].title).toBe('portal_transparencia');
+    });
+  });
+
+  describe('Link Extraction: Official Flag', () => {
+    it('should set official to false when encontrado is false', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section',
+          orcamento_participativo: {
+            titulo: 'OP',
+            url: 'https://example.com',
+            encontrado: false,
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links[0].official).toBe(false);
+    });
+
+    it('should set official to false when status is nao_localizado', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section',
+          orcamento_participativo: {
+            titulo: 'OP',
+            url: 'https://example.com',
+            status: 'nao_localizado',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links[0].official).toBe(false);
+    });
+
+    it('should set official to true for valid links by default', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section',
+          orcamento_participativo: {
+            titulo: 'OP',
+            url: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links[0].official).toBe(true);
+    });
+  });
+
+  describe('Link Kind Inference: Edge Cases', () => {
+    it('should infer participation kind from orcamento_participativo key', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section',
+          orcamento_participativo: {
+            url: 'https://op.example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.sections[0].links[0].kind).toBe('op');
+    });
+
+    it('should infer ombudsman kind from ouvidoria key', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section',
+          ouvidoria: {
+            url: 'https://ouvidoria.example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.sections[0].links[0].kind).toBe('ombudsman');
+    });
+
+    it('should infer planning kind from ldo key', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Section',
+          ldo: {
+            url: 'https://ldo.example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.sections[0].links[0].kind).toBe('planning');
+    });
+
+    it('should default to section kind for unknown keys', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Section',
+          unknown_key: {
+            url: 'https://example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      // Section I defaults to 'other' kind
+      expect(result.sections[0].links[0].kind).toBe('other');
+    });
+  });
+
+  describe('Gap Status Inference: All Permutations', () => {
+    it('should infer missing from nao_identificadas status', () => {
+      const valid: RawRegistry = {
+        lacunas: [
+          {
+            item: 'Test',
+            status: 'nao_identificadas',
+          },
+        ],
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps[0].status).toBe('missing');
+    });
+
+    it('should infer partial from parcialmente_disponibilizado status', () => {
+      const valid: RawRegistry = {
+        lacunas: [
+          {
+            item: 'Test',
+            status: 'parcialmente_disponibilizado',
+          },
+        ],
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps[0].status).toBe('partial');
+    });
+
+    it('should infer missing when encontrado is explicitly false', () => {
+      const valid: RawRegistry = {
+        lacunas: [
+          {
+            item: 'Test',
+            encontrado: false,
+          },
+        ],
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps[0].status).toBe('missing');
+    });
+  });
 });

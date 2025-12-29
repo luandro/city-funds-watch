@@ -206,7 +206,8 @@ export default function Sources() {
         setSections(registry.sections);
         setGaps(registry.gaps);
         setMetadata(registry.metadata);
-        setCacheStatus(sourceRegistryService.getCacheStatus());
+        const status = sourceRegistryService.getCacheStatus();
+        setCacheStatus(status.usingFallback ? "fallback" : status.degraded ? "stale" : "fresh");
         setLoading(false);
       } catch (err) {
         logger.error("Failed to load sources", err);
@@ -226,7 +227,8 @@ export default function Sources() {
       setSections(registry.sections);
       setGaps(registry.gaps);
       setMetadata(registry.metadata);
-      setCacheStatus(sourceRegistryService.getCacheStatus());
+      const status = sourceRegistryService.getCacheStatus();
+      setCacheStatus(status.usingFallback ? "fallback" : status.degraded ? "stale" : "fresh");
       logger.info("Registry refreshed manually");
     } catch (err) {
       logger.error("Failed to refresh registry", err);

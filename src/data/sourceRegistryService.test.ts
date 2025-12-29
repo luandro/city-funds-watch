@@ -553,4 +553,77 @@ describe('sourceRegistryService', () => {
       expect(fetchCallCount).toBe(1);
     });
   });
+
+  describe('Status APIs', () => {
+    it('should report when using fallback registry', async () => {
+      expect(sourceRegistryService.isUsingFallback()).toBe(false);
+
+      mockFetch.mockRejectedValueOnce(new Error('404 Not Found'));
+      await sourceRegistryService.getRegistry();
+
+      expect(sourceRegistryService.isUsingFallback()).toBe(true);
+    });
+
+    it('should report not using fallback when data loads successfully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+      });
+
+      await sourceRegistryService.getRegistry();
+      expect(sourceRegistryService.isUsingFallback()).toBe(false);
+    });
+
+    it('should provide comprehensive cache status', async () => {
+      // No cache initially
+      let status = sourceRegistryService.getCacheStatus();
+      expect(status.loaded).toBe(false);
+      expect(status.cached).toBe(false);
+      expect(status.stale).toBe(true);
+      expect(status.ageMs).toBeNull();
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+      });
+
+      await sourceRegistryService.getRegistry();
+
+      status = sourceRegistryService.getCacheStatus();
+      expect(status.loaded).toBe(true);
+      expect(status.cached).toBe(true);
+      expect(status.stale).toBe(false);
+      expect(status.ageMs).toBeGreaterThanOrEqual(0);
+      expect(status.usingFallback).toBe(false);
+      expect(status.degraded).toBe(false);
+    });
+
+    it('should expose last error via getError', async () => {
+      expect(sourceRegistryService.getError()).toBeNull();
+
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
+
+      await sourceRegistryService.getRegistry();
+
+      const lastError = sourceRegistryService.getError();
+      expect(lastError).toBeDefined();
+      expect(lastError?.message).toBeDefined();
+    });
+
+    it('should clear error on successful load', async () => {
+      // Cause error
+      mockFetch.mockRejectedValueOnce(new Error('Network failure'));
+      await sourceRegistryService.getRegistry();
+      expect(sourceRegistryService.getError()).not.toBeNull();
+
+      // Successful load
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+      });
+      await sourceRegistryService.getRegistry(true);
+
+      expect(sourceRegistryService.getError()).toBeNull();
+    });
+  });
 });

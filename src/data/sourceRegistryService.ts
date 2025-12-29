@@ -12,9 +12,21 @@ import { DATA_SOURCE_URL } from "@/config/data-source";
 import { logger } from "@/utils/logger";
 
 /**
- * Cache status tracking
+ * Cache status tracking (internal)
  */
-type CacheStatus = "fresh" | "stale" | "fallback";
+type CacheStatusType = "fresh" | "stale" | "fallback";
+
+/**
+ * Comprehensive cache status interface
+ */
+export interface CacheStatus {
+  loaded: boolean;
+  cached: boolean;
+  stale: boolean;
+  ageMs: number | null;
+  usingFallback: boolean;
+  degraded: boolean;
+}
 
 class SourceRegistryService {
   private cache: SourceRegistry | null = null;
@@ -23,7 +35,7 @@ class SourceRegistryService {
   private error: Error | null = null;
   private cacheTimestamp: number | null = null;
   private lastKnownGoodTimestamp: number | null = null;
-  private cacheStatus: CacheStatus = "fresh";
+  private cacheStatus: CacheStatusType = "fresh";
 
   /**
    * Fetch timeout in milliseconds
@@ -457,7 +469,14 @@ class SourceRegistryService {
    * Get current cache status
    */
   getCacheStatus(): CacheStatus {
-    return this.cacheStatus;
+    return {
+      loaded: this.isLoaded(),
+      cached: this.cache !== null,
+      stale: this.isCacheStale(),
+      ageMs: this.getCacheAge(),
+      usingFallback: this.isUsingFallback(),
+      degraded: this.isUsingDegradedData(),
+    };
   }
 }
 

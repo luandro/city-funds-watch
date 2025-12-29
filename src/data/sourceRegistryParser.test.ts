@@ -553,4 +553,178 @@ describe('sourceRegistryParser', () => {
       expect(participationSection?.tags).toContain('orçamento');
     });
   });
+
+  describe('Security: Prototype Pollution Prevention', () => {
+    it('should reject __proto__ in object keys (from JSON)', () => {
+      // Simulate malicious JSON input that would create an actual __proto__ key
+      const maliciousJson = '{"metadata":{"municipio":"Test"},"__proto__":{"polluted":true}}';
+      const malicious = JSON.parse(maliciousJson);
+
+      expect(() => parseSourceRegistry(malicious)).toThrow(ValidationError);
+      expect(() => parseSourceRegistry(malicious)).toThrow('Input must be a valid JSON object');
+    });
+
+    it('should reject constructor in object keys (from JSON)', () => {
+      const maliciousJson = '{"metadata":{"municipio":"Test"},"constructor":{"polluted":true}}';
+      const malicious = JSON.parse(maliciousJson);
+
+      expect(() => parseSourceRegistry(malicious)).toThrow(ValidationError);
+      expect(() => parseSourceRegistry(malicious)).toThrow('Input must be a valid JSON object');
+    });
+
+    it('should reject prototype in object keys (from JSON)', () => {
+      const maliciousJson = '{"metadata":{"municipio":"Test"},"prototype":{"polluted":true}}';
+      const malicious = JSON.parse(maliciousJson);
+
+      expect(() => parseSourceRegistry(malicious)).toThrow(ValidationError);
+      expect(() => parseSourceRegistry(malicious)).toThrow('Input must be a valid JSON object');
+    });
+  });
+
+  describe('Security: Maximum Depth Validation', () => {
+    it('should reject objects exceeding MAX_OBJECT_DEPTH', () => {
+      // Create deeply nested object (11 levels deep which exceeds MAX_OBJECT_DEPTH of 10)
+      const deeplyNested: Record<string, unknown> = { metadata: { municipio: 'Test' } };
+      let current: Record<string, unknown> = deeplyNested;
+      for (let i = 0; i < 12; i++) {
+        current.nested = {};
+        current = current.nested as Record<string, unknown>;
+      }
+
+      expect(() => parseSourceRegistry(deeplyNested)).toThrow(ValidationError);
+      expect(() => parseSourceRegistry(deeplyNested)).toThrow('Input must be a valid JSON object');
+    });
+
+    it('should accept objects within MAX_OBJECT_DEPTH', () => {
+      // Create object at exactly MAX_OBJECT_DEPTH (10 levels) - this should be within limits
+      const acceptable: Record<string, unknown> = { metadata: { municipio: 'Test' } };
+      let current: Record<string, unknown> = acceptable;
+      for (let i = 0; i < 8; i++) {
+        current.nested = {};
+        current = current.nested as Record<string, unknown>;
+      }
+
+      const result = parseSourceRegistry(acceptable);
+      expect(result).toBeDefined();
+      expect(result.metadata.municipality).toBe('Test');
+    });
+  });
+
+  describe('Security: Dangerous String Pattern Detection', () => {
+    it('should filter out dangerous <script> tags in metadata by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: '<script>alert(1)</script>',
+          estado: 'Valid State',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      // Should use default instead of dangerous string
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+      expect(result.metadata.state).toBe('Valid State'); // valid value preserved
+    });
+
+    it('should filter out links with javascript: protocol', () => {
+      const malicious = {
+        portais_de_acesso: {
+          portal: {
+            descricao: 'Click here',
+            url: 'javascript:alert(1)',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      // Should filter out the malicious portal (already tested in URL validation)
+      expect(result.globalLinks).toHaveLength(0);
+    });
+
+    it('should filter out onerror event handlers in metadata by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: 'Test <img src=x onerror=alert(1)>',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+    });
+
+    it('should filter out onclick event handlers by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: 'Test <div onclick=alert(1)>Click</div>',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+    });
+
+    it('should filter out onload event handlers by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: 'Test <body onload=alert(1)>',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+    });
+
+    it('should filter out <iframe> tags by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: 'Test <iframe src="evil.com"></iframe>',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+    });
+
+    it('should filter out <object> tags by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: 'Test <object data="evil.swf"></object>',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+    });
+
+    it('should filter out <embed> tags by using defaults', () => {
+      const malicious = {
+        metadata: {
+          municipio: 'Test <embed src="evil.swf">',
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.metadata.municipality).toBe('Belo Horizonte'); // default
+    });
+
+    it('should accept safe Portuguese strings with special characters', () => {
+      const safe = {
+        metadata: {
+          municipio: 'São Paulo',
+          estado: 'São Paulo',
+        },
+        portais_de_acesso: {
+          transparency: {
+            nome: 'Portal da Transparência',
+            descricao: 'Acesso à informação pública',
+            url: 'https://transparencia.sp.gov.br',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(safe);
+      expect(result).toBeDefined();
+      expect(result.metadata.municipality).toBe('São Paulo');
+      expect(result.globalLinks[0].description).toBe('Acesso à informação pública');
+    });
+  });
 });

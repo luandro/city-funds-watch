@@ -247,6 +247,78 @@ describe('sourceRegistryParser', () => {
     });
   });
 
+  describe('Security: URL Length Validation', () => {
+    it('should reject URLs exceeding MAX_URL_LENGTH', () => {
+      const veryLongUrl = 'https://example.com/' + 'a'.repeat(2100);
+      const malicious = {
+        portais_de_acesso: {
+          portal: {
+            url: veryLongUrl,
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      // Should filter out the too-long URL
+      expect(result.globalLinks).toHaveLength(0);
+    });
+
+    it('should accept URLs at MAX_URL_LENGTH boundary', () => {
+      const maxLengthUrl = 'https://example.com/' + 'a'.repeat(2028); // Total = 2048
+      const valid = {
+        portais_de_acesso: {
+          portal: {
+            url: maxLengthUrl,
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks).toHaveLength(1);
+      expect(result.globalLinks[0].url).toBe(maxLengthUrl);
+    });
+
+    it('should trim whitespace from URLs', () => {
+      const valid = {
+        portais_de_acesso: {
+          portal: {
+            url: '  https://example.com/path  ',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.globalLinks).toHaveLength(1);
+      expect(result.globalLinks[0].url).toBe('https://example.com/path');
+    });
+
+    it('should reject URLs that are only whitespace after trimming', () => {
+      const invalid = {
+        portais_de_acesso: {
+          portal: {
+            url: '   ',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(invalid);
+      expect(result.globalLinks).toHaveLength(0);
+    });
+
+    it('should reject vbscript: URLs', () => {
+      const malicious = {
+        portais_de_acesso: {
+          portal: {
+            url: 'vbscript:msgbox("XSS")',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(malicious);
+      expect(result.globalLinks).toHaveLength(0);
+    });
+  });
+
   describe('Tolerance: Missing Fields', () => {
     it('should handle missing metadata gracefully', () => {
       const minimal: RawRegistry = {};

@@ -11,7 +11,8 @@ import {
   ConsoleAnalytics,
   NoOpAnalytics,
   PlausibleAnalytics,
-  CustomAnalytics
+  CustomAnalytics,
+  type AnalyticsProvider
 } from './analytics';
 
 describe('ConsoleAnalytics', () => {
@@ -228,8 +229,10 @@ describe('CustomAnalytics', () => {
   let provider: CustomAnalytics;
   let mockFetch: ReturnType<typeof vi.fn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
+    originalFetch = global.fetch;
     mockFetch = vi.fn();
     global.fetch = mockFetch as unknown as typeof fetch;
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -237,6 +240,7 @@ describe('CustomAnalytics', () => {
   });
 
   afterEach(() => {
+    global.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
@@ -573,6 +577,152 @@ describe('Analytics Class', () => {
 
       const callArgs = mockProvider.track.mock.calls[0][0];
       expect(callArgs.properties.error_message).toBe(shortMessage);
+    });
+  });
+
+  describe('Analytics Enable/Disable Logic', () => {
+    let originalDoNotTrack: string | null;
+
+    beforeEach(() => {
+      // Store original doNotTrack value
+      originalDoNotTrack = navigator.doNotTrack;
+    });
+
+    afterEach(() => {
+      // Restore original doNotTrack value
+      if (originalDoNotTrack === null) {
+        delete (navigator as { doNotTrack?: string }).doNotTrack;
+      } else {
+        Object.defineProperty(navigator, 'doNotTrack', {
+          value: originalDoNotTrack,
+          configurable: true,
+        });
+      }
+      vi.unstubAllEnvs();
+    });
+
+    it('should use NoOpAnalytics when navigator.doNotTrack is "1"', () => {
+      // Mock doNotTrack
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '1',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is NoOpAnalytics by checking it has no implementation
+      expect(provider).toBeInstanceOf(NoOpAnalytics);
+    });
+
+    it('should use NoOpAnalytics when import.meta.env.DEV is true', () => {
+      // Mock DEV environment
+      vi.stubEnv('DEV', true);
+
+      // Reset doNotTrack to allow analytics otherwise
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '0',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is NoOpAnalytics
+      expect(provider).toBeInstanceOf(NoOpAnalytics);
+    });
+
+    it('should use PlausibleAnalytics when VITE_ANALYTICS_PROVIDER is "plausible"', () => {
+      // Mock production environment with plausible provider
+      vi.stubEnv('DEV', false);
+      vi.stubEnv('VITE_ANALYTICS_PROVIDER', 'plausible');
+      vi.stubEnv('VITE_ANALYTICS_DOMAIN', 'test.example.com');
+
+      // Reset doNotTrack to allow analytics
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '0',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is PlausibleAnalytics
+      expect(provider).toBeInstanceOf(PlausibleAnalytics);
+    });
+
+    it('should use CustomAnalytics when VITE_ANALYTICS_PROVIDER is "custom"', () => {
+      // Mock production environment with custom provider
+      vi.stubEnv('DEV', false);
+      vi.stubEnv('VITE_ANALYTICS_PROVIDER', 'custom');
+      vi.stubEnv('VITE_ANALYTICS_ENDPOINT', 'https://analytics.test.com/api');
+
+      // Reset doNotTrack to allow analytics
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '0',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is CustomAnalytics
+      expect(provider).toBeInstanceOf(CustomAnalytics);
+    });
+
+    it('should use NoOpAnalytics when VITE_ANALYTICS_PROVIDER is not set', () => {
+      // Mock production environment without provider specified
+      vi.stubEnv('DEV', false);
+      // Explicitly set VITE_ANALYTICS_PROVIDER to undefined
+      vi.stubEnv('VITE_ANALYTICS_PROVIDER', undefined);
+
+      // Reset doNotTrack to allow analytics
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '0',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is NoOpAnalytics (fallback)
+      expect(provider).toBeInstanceOf(NoOpAnalytics);
+    });
+
+    it('should respect doNotTrack even when VITE_ANALYTICS_PROVIDER is set', () => {
+      // Mock production environment with provider
+      vi.stubEnv('DEV', false);
+      vi.stubEnv('VITE_ANALYTICS_PROVIDER', 'plausible');
+
+      // Set doNotTrack to block analytics
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '1',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is NoOpAnalytics (doNotTrack takes priority)
+      expect(provider).toBeInstanceOf(NoOpAnalytics);
+    });
+
+    it('should disable analytics in DEV mode even when VITE_ANALYTICS_PROVIDER is set', () => {
+      // Mock development environment with provider
+      vi.stubEnv('DEV', true);
+      vi.stubEnv('VITE_ANALYTICS_PROVIDER', 'plausible');
+
+      // Reset doNotTrack to allow analytics otherwise
+      Object.defineProperty(navigator, 'doNotTrack', {
+        value: '0',
+        configurable: true,
+      });
+
+      const analyticsInstance = new Analytics();
+      const provider = (analyticsInstance as unknown as { provider: AnalyticsProvider }).provider;
+
+      // Verify provider is NoOpAnalytics (DEV mode disables analytics)
+      expect(provider).toBeInstanceOf(NoOpAnalytics);
     });
   });
 });

@@ -238,3 +238,4 @@ export const analytics = new Analytics();
 
 // Export for testing
 export { Analytics, ConsoleAnalytics, PlausibleAnalytics, CustomAnalytics, NoOpAnalytics };
+export type { AnalyticsProvider };

@@ -5,8 +5,8 @@
  * Following TDD principles with comprehensive edge case coverage.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -56,6 +56,7 @@ describe('Sources Page', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers(); // Ensure we start with real timers
 
     // Default: successful registry load
     mockSourceRegistryService.getRegistry.mockResolvedValue(createMockRegistry());
@@ -69,6 +70,10 @@ describe('Sources Page', () => {
       usingFallback: false,
       degraded: false,
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers(); // Ensure we clean up fake timers after each test
   });
 
   describe('Basic Rendering', () => {
@@ -408,8 +413,8 @@ describe('Sources Page', () => {
       const searchInput = screen.getByPlaceholderText(/buscar lacunas/i);
       await userEvent.type(searchInput, 'test');
 
-      // Find and click clear button
-      const clearButton = await screen.findByRole('button', { name: '' }); // X button has no aria-label
+      // Find and click clear button using aria-label
+      const clearButton = await screen.findByRole('button', { name: /limpar busca/i });
       await userEvent.click(clearButton);
 
       // Search input should be cleared
@@ -903,6 +908,628 @@ describe('Sources Page', () => {
 
       // During loading, warning should not be shown
       expect(screen.queryByText(/dados desatualizados/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Section Detail View', () => {
+    it('should open detail view when clicking a section card', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Participação Social',
+            letter: 'I',
+            description: 'Canais de participação',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Orçamento Participativo',
+                url: 'https://op.example.com',
+                kind: 'op',
+                official: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Wait for sections to load
+      await waitFor(() => {
+        expect(screen.getByText('Participação Social')).toBeInTheDocument();
+      });
+
+      // Click the section card
+      const sectionTitle = screen.getByText('Participação Social');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Should show section detail with header
+      await waitFor(() => {
+        expect(screen.getByText('Seção I')).toBeInTheDocument();
+        expect(screen.getByText('Participação Social')).toBeInTheDocument();
+      });
+    });
+
+    it('should render links in detail view', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test description',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Test Link',
+                url: 'https://test.example.com',
+                kind: 'other',
+                official: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Click section
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Should show link in detail view
+      await waitFor(() => {
+        expect(screen.getByText('Test Link')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /abrir/i })).toHaveAttribute(
+          'href',
+          'https://test.example.com'
+        );
+      });
+    });
+
+    it('should return to grid view when clicking back button', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test description',
+            links: [],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Click section to open detail view
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+      });
+
+      // Click back button
+      const backButton = screen.getByRole('button', { name: /explorar todas áreas/i });
+      await userEvent.click(backButton);
+
+      // Should be back in grid view with tabs visible
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /explorar por área/i })).toBeInTheDocument();
+        expect(screen.queryByText('Seção A')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('LinkCard Copy Functionality', () => {
+    beforeEach(() => {
+      // Mock clipboard API
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: vi.fn(),
+        },
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.useRealTimers(); // Ensure real timers are restored
+    });
+
+    it('should copy link URL to clipboard on copy button click', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator.clipboard, { writeText: writeTextMock });
+
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Test Link',
+                url: 'https://test.example.com',
+                kind: 'other',
+                official: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Test Link')).toBeInTheDocument();
+      });
+
+      // Click copy button
+      const copyButton = await screen.findByRole('button', { name: /copiar/i });
+      await userEvent.click(copyButton);
+
+      // Should call clipboard API with correct URL
+      expect(writeTextMock).toHaveBeenCalledWith('https://test.example.com');
+    });
+
+    it('should show "Copiado!" message after successful copy', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator.clipboard, { writeText: writeTextMock });
+
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Test Link',
+                url: 'https://test.example.com',
+                kind: 'other',
+                official: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Test Link')).toBeInTheDocument();
+      });
+
+      // Click copy button
+      const copyButton = await screen.findByRole('button', { name: /copiar/i });
+      await userEvent.click(copyButton);
+
+      // Should show "Copiado!" message
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /copiado/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should reset to "Copiar" after 2 seconds', async () => {
+      // Use fake timers with shouldAdvanceTime to allow async operations
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator.clipboard, { writeText: writeTextMock });
+
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Test Link',
+                url: 'https://test.example.com',
+                kind: 'other',
+                official: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Test Link')).toBeInTheDocument();
+      });
+
+      // Click copy button
+      const copyButton = await screen.findByRole('button', { name: /copiar/i });
+      await userEvent.click(copyButton);
+
+      // Should show "Copiado!"
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /copiado/i })).toBeInTheDocument();
+      });
+
+      // Advance fake timers by 2 seconds
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      // Should reset to "Copiar"
+      expect(screen.getByRole('button', { name: /^copiar$/i })).toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('should log error when clipboard copy fails', async () => {
+      const writeTextMock = vi.fn().mockRejectedValue(new Error('Clipboard error'));
+      Object.assign(navigator.clipboard, { writeText: writeTextMock });
+
+      // Mock logger
+      const mockLogger = await import('@/utils/logger');
+      const loggerErrorSpy = vi.spyOn(mockLogger.logger, 'error');
+
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Test Link',
+                url: 'https://test.example.com',
+                kind: 'other',
+                official: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Test Link')).toBeInTheDocument();
+      });
+
+      // Click copy button
+      const copyButton = await screen.findByRole('button', { name: /copiar/i });
+      await userEvent.click(copyButton);
+
+      // Should call logger.error
+      await waitFor(() => {
+        expect(loggerErrorSpy).toHaveBeenCalledWith(
+          'Failed to copy link to clipboard',
+          expect.any(Error)
+        );
+      });
+    });
+  });
+
+  describe('Verification Badge Rendering', () => {
+    it('should render verified badge', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Verified Link',
+                url: 'https://verified.example.com',
+                kind: 'other',
+                official: true,
+                verificationStatus: 'verified',
+                lastVerified: '2024-01-15T10:00:00Z',
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Verified Link')).toBeInTheDocument();
+      });
+
+      // Should show verified badge
+      await waitFor(() => {
+        expect(screen.getByText('Verificado')).toBeInTheDocument();
+      });
+    });
+
+    it('should render unverified badge', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Unverified Link',
+                url: 'https://unverified.example.com',
+                kind: 'other',
+                official: true,
+                verificationStatus: 'unverified',
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Unverified Link')).toBeInTheDocument();
+      });
+
+      // Should show unverified badge
+      await waitFor(() => {
+        expect(screen.getByText('Não verificado')).toBeInTheDocument();
+      });
+    });
+
+    it('should render broken badge', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Broken Link',
+                url: 'https://broken.example.com',
+                kind: 'other',
+                official: true,
+                verificationStatus: 'broken',
+                lastVerified: '2024-01-15T10:00:00Z',
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Broken Link')).toBeInTheDocument();
+      });
+
+      // Should show broken badge
+      await waitFor(() => {
+        expect(screen.getByText('Link quebrado')).toBeInTheDocument();
+      });
+    });
+
+    it('should render redirected badge', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Redirected Link',
+                url: 'https://redirected.example.com',
+                kind: 'other',
+                official: true,
+                verificationStatus: 'redirected',
+                lastVerified: '2024-01-15T10:00:00Z',
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Redirected Link')).toBeInTheDocument();
+      });
+
+      // Should show redirected badge
+      await waitFor(() => {
+        expect(screen.getByText('Redirecionado')).toBeInTheDocument();
+      });
+    });
+
+    it('should display lastVerified date in pt-BR format', async () => {
+      const registryWithSection = createMockRegistry({
+        sections: [
+          {
+            id: 'section-1',
+            title: 'Test Section',
+            letter: 'A',
+            description: 'Test',
+            links: [
+              {
+                id: 'link-1',
+                title: 'Verified Link',
+                url: 'https://verified.example.com',
+                kind: 'other',
+                official: true,
+                verificationStatus: 'verified',
+                lastVerified: '2024-01-15T10:00:00Z',
+              },
+            ],
+          },
+        ],
+      });
+
+      mockSourceRegistryService.getRegistry.mockResolvedValue(registryWithSection);
+
+      render(
+        <BrowserRouter>
+          <Sources />
+        </BrowserRouter>
+      );
+
+      // Open section detail
+      const sectionTitle = await screen.findByText('Test Section');
+      const sectionCard = sectionTitle.closest('[class*="cursor-pointer"]');
+      await userEvent.click(sectionCard!);
+
+      // Wait for detail view and link to render
+      await waitFor(() => {
+        expect(screen.getByText('Seção A')).toBeInTheDocument();
+        expect(screen.getByText('Verified Link')).toBeInTheDocument();
+      });
+
+      // Should show lastVerified date with "Verificado" prefix
+      await waitFor(() => {
+        const dateText = screen.getByText(/verificado 15\/01\/2024/i);
+        expect(dateText).toBeInTheDocument();
+      });
     });
   });
 });

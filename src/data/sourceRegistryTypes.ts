@@ -24,6 +24,7 @@ export interface RegistryLink {
   kind: LinkKind;
   description?: string;
   official?: boolean; // default true
+  completeness?: 'full' | 'partial' | 'missing'; // Data availability status
   sourcePath?: string; // where in JSON it came from (for debugging)
 
   // Verification fields

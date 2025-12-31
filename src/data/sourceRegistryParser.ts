@@ -375,6 +375,7 @@ function extractGlobalLinks(data: RawRegistry): RegistryLink[] {
           kind: inferLinkKind(key, isValidString(nome) ? nome : ""),
           description: isValidString(descricao) ? descricao : undefined,
           official: true,
+          completeness: 'full', // Global links from portais_de_acesso are always complete
           sourcePath: `portais_de_acesso.${key}`,
         });
       }
@@ -448,6 +449,7 @@ function extractShortcuts(data: RawRegistry, globalLinks: RegistryLink[]): Globa
         kind: "council",
         description: "Conselhos municipais e atas de reuniões",
         official: true,
+        completeness: 'full',
         sourcePath: "secao_i_participacao_social.conselhos_municipais",
       };
     }
@@ -667,7 +669,7 @@ function findAllLinks(
 
 /**
  * Check if a node's status indicates it's missing/unavailable
- * Handles all "not found" status variants consistently
+ * Now handles only truly missing items (not partial)
  */
 function isNodeMissing(node: Record<string, unknown>): boolean {
   const status = node.status;
@@ -676,13 +678,38 @@ function isNodeMissing(node: Record<string, unknown>): boolean {
   // Explicit "not found" flag
   if (encontrado === false) return true;
 
-  // Missing/unavailable status values
+  // Only truly missing status values (partial is NOT missing)
   if (typeof status === "string") {
-    const missingStatuses = ["nao_localizado", "nao_identificadas", "parcial", "parcialmente_disponibilizado"];
+    const missingStatuses = ["nao_localizado", "nao_identificadas"];
     return missingStatuses.includes(status);
   }
 
   return false;
+}
+
+/**
+ * Determine the completeness level of a node
+ * Distinguishes between full, partial, and missing data
+ */
+function getNodeCompleteness(node: Record<string, unknown>): 'full' | 'partial' | 'missing' {
+  const status = node.status;
+  const encontrado = node.encontrado;
+
+  // Explicit "not found" flag
+  if (encontrado === false) return 'missing';
+
+  // Check status values
+  if (typeof status === "string") {
+    if (status === "nao_localizado" || status === "nao_identificadas") {
+      return 'missing';
+    }
+    if (status === "parcial" || status === "parcialmente_disponibilizado") {
+      return 'partial';
+    }
+  }
+
+  // Default to full if we have a URL and no indication of issues
+  return 'full';
 }
 
 /**
@@ -730,13 +757,18 @@ function createLinkFromNode(
     if (inferred !== "other") kind = inferred;
   }
 
+  // Determine official status and completeness
+  const completeness = getNodeCompleteness(node);
+  const official = completeness !== 'missing'; // Official unless completely missing
+
   return {
     id,
     title,
     url,
     kind,
     description,
-    official: !isNodeMissing(node),
+    official,
+    completeness,
     sourcePath: id,
   };
 }

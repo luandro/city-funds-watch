@@ -6,7 +6,6 @@
  */
 
 import { SourceRegistry, RegistrySection, RegistryLink, RegistryGap } from "./sourceRegistryTypes";
-import { parseSourceRegistry } from "./sourceRegistryParser";
 import { TRANSPARENCY_PORTAL_URL, LAI_URL } from "@/constants/urls";
 import { DATA_SOURCE_URL } from "@/config/data-source";
 import { logger } from "@/utils/logger";
@@ -27,6 +26,14 @@ export interface CacheStatus {
   usingFallback: boolean;
   degraded: boolean;
 }
+
+/**
+ * Storage keys for localStorage persistence
+ */
+const STORAGE_KEYS = {
+  CACHE: "sourceRegistry_cache",
+  TIMESTAMP: "sourceRegistry_timestamp",
+} as const;
 
 class SourceRegistryService {
   private cache: SourceRegistry | null = null;
@@ -112,9 +119,113 @@ class SourceRegistryService {
   }
 
   /**
+   * Save registry to localStorage
+   */
+  private saveToStorage(registry: SourceRegistry): void {
+    try {
+      const serialized = JSON.stringify(registry);
+      const timestamp = Date.now();
+
+      // Check size before saving (localStorage has ~5-10MB limit)
+      if (serialized.length > 4 * 1024 * 1024) { // 4MB safety limit
+        logger.warn("Registry too large for localStorage, skipping persistence", {
+          size: serialized.length,
+        });
+        return;
+      }
+
+      localStorage.setItem(STORAGE_KEYS.CACHE, serialized);
+      localStorage.setItem(STORAGE_KEYS.TIMESTAMP, timestamp.toString());
+
+      logger.debug("Registry saved to localStorage", {
+        size: serialized.length,
+      });
+    } catch (err) {
+      // Handle quota exceeded or other localStorage errors gracefully
+      const error = err as Error;
+      if (error.name === 'QuotaExceededError') {
+        logger.warn("localStorage quota exceeded, skipping persistence");
+      } else {
+        logger.error("Failed to save registry to localStorage", err);
+      }
+    }
+  }
+
+  /**
+   * Load registry from localStorage
+   */
+  private loadFromStorage(): { registry: SourceRegistry | null; timestamp: number | null } {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.CACHE);
+      const timestampStr = localStorage.getItem(STORAGE_KEYS.TIMESTAMP);
+
+      if (!cached || !timestampStr) {
+        return { registry: null, timestamp: null };
+      }
+
+      const registry = JSON.parse(cached) as SourceRegistry;
+      const timestamp = parseInt(timestampStr, 10);
+
+      // Validate timestamp is a valid number
+      if (isNaN(timestamp)) {
+        logger.warn("Invalid timestamp in localStorage, ignoring");
+        return { registry: null, timestamp: null };
+      }
+
+      // Validate that we have a valid registry structure
+      if (!registry || !registry.metadata || !Array.isArray(registry.sections)) {
+        logger.warn("Invalid registry structure in localStorage, ignoring");
+        return { registry: null, timestamp: null };
+      }
+
+      logger.debug("Registry loaded from localStorage", {
+        age: Date.now() - timestamp,
+      });
+
+      return { registry, timestamp };
+    } catch (err) {
+      logger.error("Failed to load registry from localStorage", err);
+      return { registry: null, timestamp: null };
+    }
+  }
+
+  /**
+   * Clear registry from localStorage
+   */
+  private clearStorage(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.CACHE);
+      localStorage.removeItem(STORAGE_KEYS.TIMESTAMP);
+      logger.debug("Registry cleared from localStorage");
+    } catch (err) {
+      logger.error("Failed to clear registry from localStorage", err);
+    }
+  }
+
+  /**
+   * Initialize last-known-good cache from localStorage on first load
+   */
+  private initializeFromStorage(): void {
+    const { registry, timestamp } = this.loadFromStorage();
+
+    if (registry && timestamp) {
+      this.lastKnownGoodCache = registry;
+      this.lastKnownGoodTimestamp = timestamp;
+      logger.info("Initialized last-known-good cache from localStorage", {
+        age: Date.now() - timestamp,
+      });
+    }
+  }
+
+  /**
    * Get the registry (loads and parses on first call, then caches with TTL)
    */
   async getRegistry(forceRefresh = false): Promise<SourceRegistry> {
+    // Initialize from localStorage on first call
+    if (!this.lastKnownGoodCache && !this.lastKnownGoodTimestamp) {
+      this.initializeFromStorage();
+    }
+
     // Return cached if available and not expired (unless force refresh)
     if (!forceRefresh && this.isCacheValid() && this.cache) {
       logger.debug("Returning cached registry", {
@@ -203,6 +314,7 @@ class SourceRegistryService {
     this.cacheTimestamp = null;
     this.lastKnownGoodTimestamp = null;
     this.cacheStatus = "fresh"; // Reset to fresh state
+    this.clearStorage(); // Also clear localStorage
     logger.debug("Registry cache cleared");
   }
 
@@ -236,6 +348,9 @@ class SourceRegistryService {
       this.lastKnownGoodTimestamp = Date.now();
       this.cacheStatus = "fresh"; // Successful fetch always sets to fresh
       this.error = null; // Clear any previous error
+
+      // Persist to localStorage for offline resilience
+      this.saveToStorage(registry);
 
       logger.info("Registry loaded and cached successfully", {
         sections: registry.sections.length,
@@ -312,6 +427,7 @@ class SourceRegistryService {
 
   /**
    * Load and parse the JSON file with retry logic
+   * Uses Web Worker for parsing to avoid blocking the main thread
    * Throws error on final failure (does not return fallback registry)
    */
   private async loadAndParse(attemptNumber = 1): Promise<SourceRegistry> {
@@ -344,7 +460,9 @@ class SourceRegistryService {
       }
 
       const raw = await response.json();
-      const registry = parseSourceRegistry(raw);
+
+      // Use Web Worker for parsing to avoid blocking UI
+      const registry = await this.parseWithWorker(raw);
 
       if (attemptNumber > 1) {
         logger.info("Registry loaded successfully after retry", {
@@ -386,6 +504,62 @@ class SourceRegistryService {
   }
 
   /**
+   * Parse registry data using a Web Worker to avoid blocking the main thread
+   * Falls back to main-thread parsing if Worker fails or is not available
+   */
+  private async parseWithWorker(raw: unknown): Promise<SourceRegistry> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create worker using Vite's worker import syntax
+        const worker = new Worker(
+          new URL('./registry.worker.ts', import.meta.url),
+          { type: 'module' }
+        );
+
+        // Set up message handler
+        worker.onmessage = (event: MessageEvent) => {
+          const { type, registry, error } = event.data;
+
+          if (type === 'success') {
+            logger.debug("Registry parsed successfully in Web Worker");
+            worker.terminate();
+            resolve(registry as SourceRegistry);
+          } else if (type === 'error') {
+            logger.error("Web Worker parsing failed", new Error(error));
+            worker.terminate();
+            reject(new Error(error));
+          }
+        };
+
+        // Set up error handler
+        worker.onerror = (err) => {
+          logger.error("Web Worker error", err);
+          worker.terminate();
+          reject(new Error(`Web Worker error: ${err.message}`));
+        };
+
+        // Send data to worker for parsing
+        worker.postMessage({ type: 'parse', data: raw });
+      } catch (err) {
+        // If Worker creation fails, fall back to main-thread parsing
+        logger.warn("Failed to create Web Worker, falling back to main-thread parsing", err);
+
+        // Fallback: dynamically import parser and parse on main thread
+        import("./sourceRegistryParser").then(({ parseSourceRegistry }) => {
+          try {
+            const registry = parseSourceRegistry(raw);
+            resolve(registry);
+          } catch (parseErr) {
+            reject(parseErr);
+          }
+        }).catch((importErr) => {
+          reject(importErr);
+        });
+      }
+    });
+  }
+
+  /**
    * Create a fallback registry when loading fails
    */
   private createFallbackRegistry(error: Error): SourceRegistry {
@@ -403,6 +577,7 @@ class SourceRegistryService {
           url: TRANSPARENCY_PORTAL_URL,
           kind: "transparency",
           official: true,
+          completeness: 'full',
           sourcePath: "fallback",
         },
         {
@@ -411,6 +586,7 @@ class SourceRegistryService {
           url: LAI_URL,
           kind: "lai",
           official: true,
+          completeness: 'full',
           sourcePath: "fallback",
         },
       ],
@@ -422,6 +598,7 @@ class SourceRegistryService {
           url: LAI_URL,
           kind: "lai",
           official: true,
+          completeness: 'full',
           sourcePath: "fallback",
         },
         transparencyPortal: {
@@ -430,6 +607,7 @@ class SourceRegistryService {
           url: TRANSPARENCY_PORTAL_URL,
           kind: "transparency",
           official: true,
+          completeness: 'full',
           sourcePath: "fallback",
         },
       },

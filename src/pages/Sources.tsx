@@ -668,6 +668,31 @@ function LinkCard({ link }: { link: RegistryLink }) {
     );
   };
 
+  const getCompletenessBadge = () => {
+    if (!link.completeness || link.completeness === 'full') return null;
+
+    const variants: Record<'partial' | 'missing', {
+      variant: "default" | "secondary" | "destructive";
+      label: string;
+    }> = {
+      partial: {
+        variant: "secondary",
+        label: "Parcial",
+      },
+      missing: {
+        variant: "destructive",
+        label: "Não localizado",
+      },
+    };
+
+    const config = variants[link.completeness];
+    return (
+      <Badge variant={config.variant} className="text-xs">
+        {config.label}
+      </Badge>
+    );
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -701,6 +726,7 @@ function LinkCard({ link }: { link: RegistryLink }) {
               Fonte oficial
             </Badge>
           )}
+          {getCompletenessBadge()}
           {getVerificationBadge()}
           {link.lastVerified && (
             <span className="text-xs text-muted-foreground">

@@ -1075,4 +1075,344 @@ describe('sourceRegistryParser', () => {
       expect([beforeParse, afterParse]).toContain(result.metadata.compilationDate);
     });
   });
+
+  describe('Gap Detection from Additional Section Arrays', () => {
+    it('should detect gaps from documentos array with nao_localizado status', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          documentos: [
+            {
+              id: 'doc-1',
+              titulo: 'Anexo Fiscal',
+              status: 'nao_localizado',
+              nota: 'Documento não disponível publicamente',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps.length).toBeGreaterThanOrEqual(1);
+      const docGap = result.gaps.find(g => g.title === 'Anexo Fiscal');
+      expect(docGap).toBeDefined();
+      expect(docGap?.status).toBe('missing');
+      expect(docGap?.detail).toBe('Documento não disponível publicamente');
+    });
+
+    it('should detect gaps from plans array with encontrado false', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          plans: [
+            {
+              id: 'plan-1',
+              titulo: 'Plano de Mobilidade',
+              encontrado: false,
+              recomendacao: 'Publicar plano completo',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps.length).toBeGreaterThanOrEqual(1);
+      const planGap = result.gaps.find(g => g.title === 'Plano de Mobilidade');
+      expect(planGap).toBeDefined();
+      expect(planGap?.status).toBe('missing');
+      expect(planGap?.detail).toBe('Publicar plano completo');
+    });
+
+    it('should detect gaps from conselhos array with nao_identificadas status', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          conselhos: [
+            {
+              id: 'conselho-1',
+              nome: 'Conselho Municipal de Habitação',
+              status: 'nao_identificadas',
+              nota: 'Atas não localizadas',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps.length).toBeGreaterThanOrEqual(1);
+      const conselhoGap = result.gaps.find(g => g.title === 'Conselho Municipal de Habitação');
+      expect(conselhoGap).toBeDefined();
+      expect(conselhoGap?.status).toBe('missing');
+      expect(conselhoGap?.detail).toBe('Atas não localizadas');
+    });
+
+    it('should detect gaps from all additional arrays in a single section', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          documentos: [
+            {
+              id: 'doc-1',
+              titulo: 'Anexo Fiscal',
+              status: 'nao_localizado',
+            },
+          ],
+          plans: [
+            {
+              id: 'plan-1',
+              titulo: 'Plano Diretor',
+              encontrado: false,
+            },
+          ],
+        },
+        secao_i_participacao_social: {
+          titulo: 'Participação',
+          conselhos: [
+            {
+              id: 'conselho-1',
+              nome: 'Conselho de Saúde',
+              status: 'nao_localizado',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps).toHaveLength(3);
+
+      const docGap = result.gaps.find(g => g.title === 'Anexo Fiscal');
+      const planGap = result.gaps.find(g => g.title === 'Plano Diretor');
+      const conselhoGap = result.gaps.find(g => g.title === 'Conselho de Saúde');
+
+      expect(docGap).toBeDefined();
+      expect(docGap?.status).toBe('missing');
+
+      expect(planGap).toBeDefined();
+      expect(planGap?.status).toBe('missing');
+
+      expect(conselhoGap).toBeDefined();
+      expect(conselhoGap?.status).toBe('missing');
+    });
+  });
+
+  describe('Description Extraction from conteudo Field', () => {
+    it('should extract description from conteudo field when descricao missing', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          portal_participacao: {
+            titulo: 'Portal de Participação',
+            url: 'https://participacao.example.com',
+            conteudo: 'Sistema para participação cidadã',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links).toHaveLength(1);
+      expect(section.links[0].description).toBe('Sistema para participação cidadã');
+    });
+
+    it('should prefer descricao over conteudo when both present', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          portal_participacao: {
+            titulo: 'Portal de Participação',
+            url: 'https://participacao.example.com',
+            descricao: 'Descrição oficial',
+            conteudo: 'Conteúdo alternativo',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links).toHaveLength(1);
+      expect(section.links[0].description).toBe('Descrição oficial');
+    });
+
+    it('should use conteudo when descricao is invalid', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          portal_participacao: {
+            titulo: 'Portal de Participação',
+            url: 'https://participacao.example.com',
+            descricao: null,
+            conteudo: 'Descrição do conteúdo',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links).toHaveLength(1);
+      expect(section.links[0].description).toBe('Descrição do conteúdo');
+    });
+
+    it('should return undefined when both descricao and conteudo missing', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          portal_participacao: {
+            titulo: 'Portal de Participação',
+            url: 'https://participacao.example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      expect(section.links).toHaveLength(1);
+      expect(section.links[0].description).toBeUndefined();
+    });
+  });
+
+  describe('Link Kind Inference from Key Patterns', () => {
+    it('should infer planning kind from ppa key', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          ppa_2022_2025: {
+            titulo: 'PPA 2022-2025',
+            url: 'https://planejamento.example.com/ppa',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const ppaLink = section.links.find(l => l.title === 'PPA 2022-2025');
+      expect(ppaLink).toBeDefined();
+      expect(ppaLink?.kind).toBe('planning');
+    });
+
+    it('should infer amendments kind from emenda key', () => {
+      const valid: RawRegistry = {
+        secao_d_emendas_orcamentarias: {
+          titulo: 'Emendas Orçamentárias',
+          sistema_emendas: {
+            titulo: 'Sistema de Emendas',
+            url: 'https://emendas.example.com',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const emendaLink = section.links.find(l => l.title === 'Sistema de Emendas');
+      expect(emendaLink).toBeDefined();
+      expect(emendaLink?.kind).toBe('amendments');
+    });
+
+    it('should infer accountability kind from rreo key', () => {
+      const valid: RawRegistry = {
+        secao_e_prestacao_contas: {
+          titulo: 'Prestação de Contas',
+          rreo: {
+            titulo: 'RREO',
+            url: 'https://prestacao.example.com/rreo',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const rreoLink = section.links.find(l => l.title === 'RREO');
+      expect(rreoLink).toBeDefined();
+      expect(rreoLink?.kind).toBe('accountability');
+    });
+
+    it('should infer external_control kind from tce key', () => {
+      const valid: RawRegistry = {
+        secao_f_controle_externo: {
+          titulo: 'Controle Externo',
+          tce_pareceres: {
+            titulo: 'Pareceres TCE',
+            url: 'https://tce.example.com/pareceres',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const tceLink = section.links.find(l => l.title === 'Pareceres TCE');
+      expect(tceLink).toBeDefined();
+      expect(tceLink?.kind).toBe('external_control');
+    });
+
+    it('should infer sector_plan kind from plano key', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          plano_educacao: {
+            titulo: 'Plano Municipal de Educação',
+            url: 'https://educacao.example.com/plano',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const planoLink = section.links.find(l => l.title === 'Plano Municipal de Educação');
+      expect(planoLink).toBeDefined();
+      expect(planoLink?.kind).toBe('sector_plan');
+    });
+
+    it('should infer planning kind from loa key', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          loa_2024: {
+            titulo: 'LOA 2024',
+            url: 'https://orcamento.example.com/loa',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const loaLink = section.links.find(l => l.title === 'LOA 2024');
+      expect(loaLink).toBeDefined();
+      expect(loaLink?.kind).toBe('planning');
+    });
+
+    it('should infer accountability kind from rgf key', () => {
+      const valid: RawRegistry = {
+        secao_e_prestacao_contas: {
+          titulo: 'Prestação de Contas',
+          rgf_quadrimestral: {
+            titulo: 'RGF Quadrimestral',
+            url: 'https://prestacao.example.com/rgf',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const rgfLink = section.links.find(l => l.title === 'RGF Quadrimestral');
+      expect(rgfLink).toBeDefined();
+      expect(rgfLink?.kind).toBe('accountability');
+    });
+
+    it('should infer accountability kind from balanc (balance) key', () => {
+      const valid: RawRegistry = {
+        secao_e_prestacao_contas: {
+          titulo: 'Prestação de Contas',
+          balanco_anual: {
+            titulo: 'Balanço Anual',
+            url: 'https://prestacao.example.com/balanco',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const balancoLink = section.links.find(l => l.title === 'Balanço Anual');
+      expect(balancoLink).toBeDefined();
+      expect(balancoLink?.kind).toBe('accountability');
+    });
+  });
 });

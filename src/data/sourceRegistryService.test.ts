@@ -626,4 +626,330 @@ describe('sourceRegistryService', () => {
       expect(sourceRegistryService.getError()).toBeNull();
     });
   });
+
+  describe('isRetryableError Error Classification', () => {
+    it('should retry on 500 server error', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          return Promise.reject(new Error('Failed to load registry: 500 Internal Server Error'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+
+    it('should retry on 502 Bad Gateway error', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          return Promise.reject(new Error('Failed to load registry: 502 Bad Gateway'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+
+    it('should retry on 503 Service Unavailable error', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          return Promise.reject(new Error('Failed to load registry: 503 Service Unavailable'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+
+    it('should retry on 504 Gateway Timeout error', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          return Promise.reject(new Error('Failed to load registry: 504 Gateway Timeout'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+
+    it('should retry on 429 Rate Limit error', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          return Promise.reject(new Error('Failed to load registry: 429 Too Many Requests'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+
+    it('should NOT retry on 404 Not Found error', async () => {
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(new Error('Failed to load registry: 404 Not Found'));
+      });
+
+      const result = await sourceRegistryService.getRegistry();
+
+      expect(attemptCount).toBe(1); // No retries
+      expect(result.globalLinks[0].id).toBe('fallback-transparency'); // Fallback used
+    });
+
+    it('should NOT retry on 400 Bad Request error', async () => {
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(new Error('Failed to load registry: 400 Bad Request'));
+      });
+
+      const result = await sourceRegistryService.getRegistry();
+
+      expect(attemptCount).toBe(1); // No retries
+      expect(result.globalLinks[0].id).toBe('fallback-transparency'); // Fallback used
+    });
+
+    it('should retry on TypeError with fetch in message', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          const error = new TypeError('Failed to fetch');
+          return Promise.reject(error);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+
+    it('should retry on AbortError', async () => {
+      vi.useFakeTimers();
+
+      let attemptCount = 0;
+      mockFetch.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 2) {
+          return Promise.reject(createAbortError());
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+        });
+      });
+
+      const promise = sourceRegistryService.getRegistry();
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      const result = await promise;
+
+      expect(attemptCount).toBe(2); // Retried once
+      expect(result).toBeDefined();
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('Last-Known-Good Expiry Logic', () => {
+    it('should use fallback registry when lastKnownGood is older than 24 hours', async () => {
+      vi.useFakeTimers();
+      const now = Date.now();
+      vi.setSystemTime(now);
+
+      // First successful load
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          metadata: { municipio: 'Belo Horizonte' },
+          secao_i_participacao_social: {
+            titulo: 'Old Data',
+          },
+        }),
+      });
+
+      await sourceRegistryService.getRegistry();
+
+      // Advance time by 25 hours (beyond 24-hour limit)
+      const HOURS_25 = 25 * 60 * 60 * 1000;
+      vi.setSystemTime(now + HOURS_25);
+
+      // Next load fails (use non-retryable error to avoid retry delays)
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
+
+      const result = await sourceRegistryService.getRegistry(true);
+
+      // Should get fallback registry (not stale data)
+      expect(result.sections).toHaveLength(0); // Fallback has no sections
+      expect(result.globalLinks[0].id).toBe('fallback-transparency');
+      expect(sourceRegistryService.isUsingFallback()).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('should use lastKnownGood when it is within 24 hours', async () => {
+      vi.useFakeTimers();
+      const now = Date.now();
+      vi.setSystemTime(now);
+
+      // First successful load
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          metadata: { municipio: 'Belo Horizonte' },
+          secao_i_participacao_social: {
+            titulo: 'Recent Data',
+          },
+        }),
+      });
+
+      await sourceRegistryService.getRegistry();
+
+      // Advance time by 23 hours (within 24-hour limit)
+      const HOURS_23 = 23 * 60 * 60 * 1000;
+      vi.setSystemTime(now + HOURS_23);
+
+      // Next load fails (use non-retryable error to avoid retry delays)
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
+
+      const result = await sourceRegistryService.getRegistry(true);
+
+      // Should get stale data (not fallback)
+      expect(result.sections).toHaveLength(1);
+      expect(result.sections[0].title).toBe('Recent Data');
+      expect(sourceRegistryService.isUsingDegradedData()).toBe(true);
+      expect(sourceRegistryService.isUsingFallback()).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it('should use fallback when lastKnownGood is exactly at 24-hour boundary', async () => {
+      vi.useFakeTimers();
+      const now = Date.now();
+      vi.setSystemTime(now);
+
+      // First successful load
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          metadata: { municipio: 'Belo Horizonte' },
+          secao_i_participacao_social: {
+            titulo: 'Boundary Data',
+          },
+        }),
+      });
+
+      await sourceRegistryService.getRegistry();
+
+      // Advance time by exactly 24 hours
+      const HOURS_24 = 24 * 60 * 60 * 1000;
+      vi.setSystemTime(now + HOURS_24);
+
+      // Next load fails (use non-retryable error to avoid retry delays)
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
+
+      const result = await sourceRegistryService.getRegistry(true);
+
+      // Should get fallback (24 hours is the boundary)
+      expect(result.sections).toHaveLength(0);
+      expect(result.globalLinks[0].id).toBe('fallback-transparency');
+      expect(sourceRegistryService.isUsingFallback()).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('should use fallback when no lastKnownGood cache exists', async () => {
+      sourceRegistryService.clearCache();
+
+      // Use non-retryable error to avoid retry delays causing timeout
+      mockFetch.mockRejectedValueOnce(createNonRetryableError());
+
+      const result = await sourceRegistryService.getRegistry();
+
+      // Should get fallback (no lastKnownGood available)
+      expect(result.sections).toHaveLength(0);
+      expect(result.globalLinks[0].id).toBe('fallback-transparency');
+      expect(sourceRegistryService.isUsingFallback()).toBe(true);
+    });
+  });
 });

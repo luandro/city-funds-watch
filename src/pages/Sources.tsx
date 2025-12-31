@@ -431,6 +431,7 @@ export default function Sources() {
                       <button
                         onClick={() => setSearchQuery("")}
                         className="absolute right-8 top-1/2 -translate-y-1/2"
+                        aria-label="Limpar busca"
                       >
                         <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                       </button>

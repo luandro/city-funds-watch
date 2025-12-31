@@ -19,6 +19,7 @@ import {
 } from "./sourceRegistryTypes";
 import { TRANSPARENCY_PORTAL_URL, DOM_URL } from "@/constants/urls";
 import { logger } from "@/utils/logger";
+import { REGISTRY_DEFAULTS } from "@/config/registry";
 
 // ============================================================
 // VALIDATION: Constants
@@ -295,12 +296,31 @@ export function parseSourceRegistry(raw: unknown): SourceRegistry {
     ? dataCompilacao
     : new Date().toISOString().split('T')[0];
 
+  // Extract metadata with configured defaults
+  const municipio = isValidString(data.metadata?.municipio)
+    ? data.metadata.municipio
+    : REGISTRY_DEFAULTS.municipality;
+
+  const estado = isValidString(data.metadata?.estado)
+    ? data.metadata.estado
+    : REGISTRY_DEFAULTS.state;
+
+  // Warn if using defaults (helps detect data issues)
+  if (!isValidString(data.metadata?.municipio) || !isValidString(data.metadata?.estado)) {
+    logger.warn("Registry metadata missing, using configured defaults", {
+      municipality: municipio,
+      state: estado,
+      hasMunicipio: !!data.metadata?.municipio,
+      hasEstado: !!data.metadata?.estado,
+    });
+  }
+
   const metadata = {
     loadedAtISO: new Date().toISOString(),
     version: isValidString(data.metadata?.versao_dossiê) ? data.metadata?.versao_dossiê :
              isValidString(data.metadata?.data_compilacao) ? data.metadata?.data_compilacao : undefined,
-    municipality: isValidString(data.metadata?.municipio) ? data.metadata?.municipio : "Belo Horizonte",
-    state: isValidString(data.metadata?.estado) ? data.metadata?.estado : "Minas Gerais",
+    municipality: municipio,
+    state: estado,
     compilationDate,
   };
 
@@ -433,18 +453,21 @@ function extractShortcuts(data: RawRegistry, globalLinks: RegistryLink[]): Globa
     }
   }
 
-  // DOM from section H
+  // DOM from section H - use existing validation helper for security
   const legislatureSection = data.secao_h_poder_legislativo;
   if (legislatureSection?.diario_oficial && !shortcuts.dom) {
-    shortcuts.dom = {
-      id: "shortcuts-dom",
-      title: legislatureSection.diario_oficial.nome || "Diário Oficial",
-      url: legislatureSection.diario_oficial.url || DOM_URL,
-      kind: "dom",
-      description: "Publicações oficiais do município",
-      official: true,
-      sourcePath: "secao_h_poder_legislativo.diario_oficial",
-    };
+    const domLink = createLinkFromNode(
+      legislatureSection.diario_oficial as Record<string, unknown>,
+      "shortcuts-dom",
+      "dom"
+    );
+
+    if (domLink) {
+      shortcuts.dom = {
+        ...domLink,
+        description: "Publicações oficiais do município",
+      };
+    }
   }
 
   return shortcuts;
@@ -585,11 +608,22 @@ function parseSection(
 
 /**
  * Recursively find all links in a raw object/array
+ *
+ * PERFORMANCE NOTES:
+ * - Current implementation safe for registries <1MB (~500KB typical)
+ * - Has cycle protection (WeakSet) and depth limits (MAX_OBJECT_DEPTH)
+ * - No breadth limits on large arrays
+ *
+ * TODO: For large municipalities (>5MB registries):
+ * - Add MAX_LINKS_PER_SECTION and MAX_NODES_VISITED limits
+ * - Consider Web Worker for CPU-intensive extraction
+ * - Add progress reporting for UI feedback
+ * - Profile performance with large datasets
  */
 function findAllLinks(
-  node: unknown, 
-  parentId: string, 
-  defaultKind: LinkKind, 
+  node: unknown,
+  parentId: string,
+  defaultKind: LinkKind,
   visited = new WeakSet<object>()
 ): RegistryLink[] {
   const links: RegistryLink[] = [];

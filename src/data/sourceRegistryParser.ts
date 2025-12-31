@@ -666,11 +666,31 @@ function findAllLinks(
 }
 
 /**
+ * Check if a node's status indicates it's missing/unavailable
+ * Handles all "not found" status variants consistently
+ */
+function isNodeMissing(node: Record<string, unknown>): boolean {
+  const status = node.status;
+  const encontrado = node.encontrado;
+
+  // Explicit "not found" flag
+  if (encontrado === false) return true;
+
+  // Missing/unavailable status values
+  if (typeof status === "string") {
+    const missingStatuses = ["nao_localizado", "nao_identificadas", "parcial", "parcialmente_disponibilizado"];
+    return missingStatuses.includes(status);
+  }
+
+  return false;
+}
+
+/**
  * Try to create a RegistryLink from a node
  */
 function createLinkFromNode(
-  node: Record<string, unknown>, 
-  id: string, 
+  node: Record<string, unknown>,
+  id: string,
   defaultKind: LinkKind
 ): RegistryLink | null {
   // 1. Check if it has a URL
@@ -680,7 +700,7 @@ function createLinkFromNode(
   // 2. Extract Title
   // Try explicit title fields first
   let title = extractTitleFromObject(node);
-  
+
   // If no title, try to infer from the ID (which contains the key path)
   if (!title) {
     const lastKey = id.split(".").pop() || "";
@@ -701,9 +721,12 @@ function createLinkFromNode(
   if (isValidLinkKind(node.kind)) {
     kind = node.kind;
   } else {
-    // Try to infer from title or the node's key (part of ID)
-    const contextString = `${id} ${title}`;
-    const inferred = inferLinkKind(id, title) || inferLinkKindFromKey(id);
+    // Try to infer from title first, then fall back to key-based inference
+    let inferred = inferLinkKind(id, title);
+    // If title-based inference returns "other", try key-based patterns
+    if (inferred === "other") {
+      inferred = inferLinkKindFromKey(id);
+    }
     if (inferred !== "other") kind = inferred;
   }
 
@@ -713,7 +736,7 @@ function createLinkFromNode(
     url,
     kind,
     description,
-    official: node.encontrado !== false && node.status !== "nao_localizado",
+    official: !isNodeMissing(node),
     sourcePath: id,
   };
 }

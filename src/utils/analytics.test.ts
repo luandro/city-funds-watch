@@ -297,8 +297,14 @@ describe('CustomAnalytics', () => {
       expect(body.timestamp >= before && body.timestamp <= after).toBe(true);
     });
 
-    it('should include userAgent and referrer in request body', async () => {
+    it('should include userAgent and referrer origin in request body', async () => {
       mockFetch.mockResolvedValueOnce({ ok: true });
+
+      // Mock document.referrer with a full URL
+      Object.defineProperty(document, 'referrer', {
+        writable: true,
+        value: 'https://example.com/some/path?query=param',
+      });
 
       await provider.track({
         name: 'test_event',
@@ -308,7 +314,9 @@ describe('CustomAnalytics', () => {
       const body = JSON.parse(callArgs[1].body);
 
       expect(body.userAgent).toBe(navigator.userAgent);
-      expect(body.referrer).toBe(document.referrer);
+      // Referrer should be sanitized to only origin (domain), not full path
+      expect(body.referrer).toBe('https://example.com');
+      expect(body.referrer).not.toBe(document.referrer);
     });
 
     it('should silently fail on network error', async () => {

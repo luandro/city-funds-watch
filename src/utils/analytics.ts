@@ -72,6 +72,18 @@ class CustomAnalytics implements AnalyticsProvider {
 
   async track(event: AnalyticsEvent): Promise<void> {
     try {
+      // Sanitize referrer to only send origin (domain), not full URL with path
+      // This prevents leaking sensitive internal page paths
+      let referrerOrigin = '';
+      if (document.referrer) {
+        try {
+          referrerOrigin = new URL(document.referrer).origin;
+        } catch {
+          // If referrer is invalid, just send empty string
+          referrerOrigin = '';
+        }
+      }
+
       await fetch(this.endpoint, {
         method: 'POST',
         headers: {
@@ -81,7 +93,7 @@ class CustomAnalytics implements AnalyticsProvider {
           ...event,
           timestamp: event.timestamp || new Date().toISOString(),
           userAgent: navigator.userAgent,
-          referrer: document.referrer,
+          referrer: referrerOrigin,
         }),
       });
     } catch (error) {

@@ -447,6 +447,52 @@ describe('sourceRegistryParser', () => {
   });
 
   describe('Gap Detection from Section Arrays', () => {
+    it('should detect gaps from items with parcial status and no URL', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          planos: [
+            {
+              id: 'plano-1',
+              titulo: 'Plano Municipal de Saúde',
+              status: 'parcial',
+              recomendacao: 'Completar dados faltantes',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps.length).toBeGreaterThanOrEqual(1);
+      const parcialGap = result.gaps.find(g => g.title === 'Plano Municipal de Saúde');
+      expect(parcialGap).toBeDefined();
+      expect(parcialGap?.status).toBe('partial');
+      expect(parcialGap?.detail).toBe('Completar dados faltantes');
+    });
+
+    it('should detect gaps from items with parcialmente_disponibilizado status and no URL', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          documentos: [
+            {
+              id: 'doc-1',
+              titulo: 'Relatório Parcial',
+              status: 'parcialmente_disponibilizado',
+              nota: 'Apenas dados de 2023 disponíveis',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      expect(result.gaps.length).toBeGreaterThanOrEqual(1);
+      const parcialGap = result.gaps.find(g => g.title === 'Relatório Parcial');
+      expect(parcialGap).toBeDefined();
+      expect(parcialGap?.status).toBe('partial');
+      expect(parcialGap?.detail).toBe('Apenas dados de 2023 disponíveis');
+    });
+
     it('should detect gaps from planos array with nao_localizado status', () => {
       const valid: RawRegistry = {
         secao_g_ferramentas_setoriais: {
@@ -1267,6 +1313,119 @@ describe('sourceRegistryParser', () => {
       const section = result.sections[0];
       expect(section.links).toHaveLength(1);
       expect(section.links[0].description).toBeUndefined();
+    });
+  });
+
+  describe('Completeness Field Behavior', () => {
+    it('should assign completeness: partial and official: true for parcial status', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          planos: [
+            {
+              id: 'plano-1',
+              titulo: 'Plano Municipal',
+              url: 'https://example.com/plano',
+              status: 'parcial',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const link = section.links[0];
+
+      expect(link.completeness).toBe('partial');
+      expect(link.official).toBe(true);
+    });
+
+    it('should assign completeness: partial and official: true for parcialmente_disponibilizado status', () => {
+      const valid: RawRegistry = {
+        secao_c_ciclo_orcamentario: {
+          titulo: 'Ciclo Orçamentário',
+          documentos: [
+            {
+              id: 'doc-1',
+              titulo: 'Documento Parcial',
+              url: 'https://example.com/doc',
+              status: 'parcialmente_disponibilizado',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const link = section.links[0];
+
+      expect(link.completeness).toBe('partial');
+      expect(link.official).toBe(true);
+    });
+
+    it('should assign completeness: missing and official: false for nao_localizado status', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          planos: [
+            {
+              id: 'plano-1',
+              titulo: 'Plano Não Localizado',
+              url: 'https://example.com/placeholder',
+              status: 'nao_localizado',
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const link = section.links[0];
+
+      expect(link.completeness).toBe('missing');
+      expect(link.official).toBe(false);
+    });
+
+    it('should assign completeness: missing and official: false when encontrado is false', () => {
+      const valid: RawRegistry = {
+        secao_g_ferramentas_setoriais: {
+          titulo: 'Ferramentas Setoriais',
+          planos: [
+            {
+              id: 'plano-1',
+              titulo: 'Plano Não Encontrado',
+              url: 'https://example.com/placeholder',
+              encontrado: false,
+            },
+          ],
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const link = section.links[0];
+
+      expect(link.completeness).toBe('missing');
+      expect(link.official).toBe(false);
+    });
+
+    it('should assign completeness: full and official: true by default', () => {
+      const valid: RawRegistry = {
+        secao_i_participacao_social: {
+          titulo: 'Participação Social',
+          portal_participacao: {
+            titulo: 'Portal Completo',
+            url: 'https://example.com/portal',
+          },
+        },
+      };
+
+      const result = parseSourceRegistry(valid);
+      const section = result.sections[0];
+      const link = section.links[0];
+
+      expect(link.completeness).toBe('full');
+      expect(link.official).toBe(true);
     });
   });
 

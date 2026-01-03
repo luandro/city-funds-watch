@@ -952,4 +952,169 @@ describe('sourceRegistryService', () => {
       expect(sourceRegistryService.isUsingFallback()).toBe(true);
     });
   });
+
+  describe('Persistence (localStorage)', () => {
+    // Mock localStorage
+    const mockLocalStorage = (() => {
+      let store: Record<string, string> = {};
+      return {
+        getItem: vi.fn((key: string) => store[key] || null),
+        setItem: vi.fn((key: string, value: string) => {
+          store[key] = value;
+        }),
+        removeItem: vi.fn((key: string) => {
+          delete store[key];
+        }),
+        clear: vi.fn(() => {
+          store = {};
+        }),
+      };
+    })();
+
+    beforeEach(() => {
+      // Replace global localStorage with mock
+      Object.defineProperty(global, 'localStorage', {
+        value: mockLocalStorage,
+        writable: true,
+      });
+      mockLocalStorage.clear();
+      vi.clearAllMocks();
+    });
+
+    it('should call saveToStorage after successful fetch', async () => {
+      const mockRegistry = {
+        metadata: { municipio: 'Belo Horizonte', estado: 'MG' },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockRegistry,
+      });
+
+      await sourceRegistryService.getRegistry();
+
+      // Verify localStorage.setItem was called (saveToStorage implementation)
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        'sourceRegistry_cache',
+        expect.any(String)
+      );
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        'sourceRegistry_timestamp',
+        expect.any(String)
+      );
+    });
+
+    it('should call initializeFromStorage to hydrate cache on service startup', async () => {
+      // Pre-populate localStorage with valid cached data
+      const cachedRegistry = {
+        metadata: {
+          loadedAtISO: new Date().toISOString(),
+          municipality: 'Belo Horizonte',
+          state: 'MG',
+        },
+        sections: [],
+        globalLinks: [],
+        gaps: [],
+        shortcuts: {},
+      };
+      const timestamp = Date.now() - 1000; // 1 second ago
+
+      mockLocalStorage.setItem('sourceRegistry_cache', JSON.stringify(cachedRegistry));
+      mockLocalStorage.setItem('sourceRegistry_timestamp', timestamp.toString());
+
+      // Mock a failed fetch so we use stale data
+      mockFetch.mockRejectedValueOnce(new Error('Network failure'));
+
+      const result = await sourceRegistryService.getRegistry();
+
+      // Should have loaded from localStorage (lastKnownGoodCache)
+      expect(result).toBeDefined();
+      expect(result.metadata.municipality).toBe('Belo Horizonte');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('sourceRegistry_cache');
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('sourceRegistry_timestamp');
+    });
+
+    it('should handle QuotaExceededError gracefully without crashing', async () => {
+      const mockRegistry = {
+        metadata: { municipio: 'Belo Horizonte' },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockRegistry,
+      });
+
+      // Mock localStorage.setItem to throw QuotaExceededError
+      const quotaError = new Error('QuotaExceededError');
+      quotaError.name = 'QuotaExceededError';
+      mockLocalStorage.setItem.mockImplementationOnce(() => {
+        throw quotaError;
+      });
+
+      // Should not crash - just log warning and continue
+      const result = await sourceRegistryService.getRegistry();
+
+      expect(result).toBeDefined();
+      expect(result.metadata.municipality).toBe('Belo Horizonte');
+    });
+
+    it('should handle corrupted JSON in localStorage gracefully', async () => {
+      // Put invalid JSON in localStorage
+      mockLocalStorage.setItem('sourceRegistry_cache', '{invalid json}');
+      mockLocalStorage.setItem('sourceRegistry_timestamp', Date.now().toString());
+
+      // Mock successful fetch
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+      });
+
+      // Should ignore corrupted cache and fetch fresh data
+      const result = await sourceRegistryService.getRegistry();
+
+      expect(result).toBeDefined();
+      expect(result.metadata.municipality).toBe('Belo Horizonte');
+    });
+
+    it('should ignore cache with invalid timestamp', async () => {
+      const cachedRegistry = {
+        metadata: { municipality: 'Test' },
+        sections: [],
+        globalLinks: [],
+        gaps: [],
+        shortcuts: {},
+      };
+
+      mockLocalStorage.setItem('sourceRegistry_cache', JSON.stringify(cachedRegistry));
+      mockLocalStorage.setItem('sourceRegistry_timestamp', 'invalid-timestamp');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+      });
+
+      const result = await sourceRegistryService.getRegistry();
+
+      // Should fetch fresh data instead of using corrupted cache
+      expect(result).toBeDefined();
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should ignore cache with invalid registry structure', async () => {
+      // Put invalid structure in localStorage (missing required fields)
+      mockLocalStorage.setItem('sourceRegistry_cache', JSON.stringify({ invalid: 'structure' }));
+      mockLocalStorage.setItem('sourceRegistry_timestamp', Date.now().toString());
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ metadata: { municipio: 'Belo Horizonte' } }),
+      });
+
+      const result = await sourceRegistryService.getRegistry();
+
+      // Should fetch fresh data
+      expect(result).toBeDefined();
+      expect(mockFetch).toHaveBeenCalled();
+    });
+  });
 });

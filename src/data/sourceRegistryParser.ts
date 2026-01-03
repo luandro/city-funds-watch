@@ -764,26 +764,6 @@ function findAllLinks(
 }
 
 /**
- * Check if a node's status indicates it's missing/unavailable
- * Now handles only truly missing items (not partial)
- */
-function isNodeMissing(node: Record<string, unknown>): boolean {
-  const status = node.status;
-  const encontrado = node.encontrado;
-
-  // Explicit "not found" flag
-  if (encontrado === false) return true;
-
-  // Only truly missing status values (partial is NOT missing)
-  if (typeof status === "string") {
-    const missingStatuses = ["nao_localizado", "nao_identificadas"];
-    return missingStatuses.includes(status);
-  }
-
-  return false;
-}
-
-/**
  * Determine the completeness level of a node
  * Distinguishes between full, partial, and missing data
  */
@@ -930,7 +910,12 @@ function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, ga
         if (!isValidObject(item)) continue;
 
         const status = item.status || item.encontrado;
-        if (status === "nao_localizado" || status === false || status === "nao_identificadas") {
+        // Detect missing items (completely unavailable)
+        const isMissing = status === "nao_localizado" || status === false || status === "nao_identificadas";
+        // Detect partial items (official but incomplete - without URL these are also gaps)
+        const isPartial = status === "parcial" || status === "parcialmente_disponibilizado";
+
+        if (isMissing || isPartial) {
           // SECURITY: Validate all string fields
           const title = isValidString(item.titulo) ? item.titulo :
                         isValidString(item.nome) ? item.nome :
@@ -945,7 +930,7 @@ function scanSectionForGaps(section: RawRegistrySection, sectionPath: string, ga
             title,
             detail,
             severity: "medium",
-            status: "missing",
+            status: isMissing ? "missing" : "partial",
           });
         }
       }

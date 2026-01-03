@@ -180,8 +180,8 @@ export function profileParsePerformance(
 
   // Calculate metrics
   const linksCount = result.sections.reduce((sum, s) => sum + s.links.length, 0);
-  const parseTimePerKB = (medianTime / (registrySize / 1024));
-  const linksPerSecond = (linksCount / (medianTime / 1000));
+  const parseTimePerKB = registrySize > 0 ? (medianTime / (registrySize / 1024)) : 0;
+  const linksPerSecond = medianTime > 0 ? (linksCount / (medianTime / 1000)) : 0;
 
   return {
     registrySize,

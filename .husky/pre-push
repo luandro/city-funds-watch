@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 get_changed_files() {
-  upstream=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+  upstream=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)
   if [ -n "$upstream" ]; then
     git diff --name-only --diff-filter=ACMRT "$upstream"...HEAD
     return

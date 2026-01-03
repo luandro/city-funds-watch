@@ -15,6 +15,9 @@ dist-ssr
 # Local agent development files
 .letta/
 
+# AI agent context files (Claude Code)
+.claude/
+
 # Test coverage
 coverage
 

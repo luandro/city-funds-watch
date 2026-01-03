@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr view 4 --json title,body,state,author,files,additions,deletions,changedFiles)",
+      "Bash(gh pr diff 4)"
+    ]
+  }
+}

@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Local agent development files
+.letta/
+
+# Test coverage
+coverage
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +28,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Source Registry Data
+# The BH-dados-publicos.json file contains the source registry for official
+# government links. It's generated/maintained externally and should be
+# placed in public/ manually or via build script.
+# Uncomment the line below if you don't want to track this file:
+# public/BH-dados-publicos.json

@@ -13,6 +13,7 @@ const LocalSpend = lazy(() => import("./pages/LocalSpend"));
 const Services = lazy(() => import("./pages/Services"));
 const Hearings = lazy(() => import("./pages/Hearings"));
 const Projects = lazy(() => import("./pages/Projects"));
+const Sources = lazy(() => import("./pages/Sources"));
 
 const queryClient = new QueryClient();
 
@@ -34,7 +35,10 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <BrowserRouter
+        basename={import.meta.env.BASE_URL}
+        future={{ v7_startTransition: true }}
+      >
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -45,6 +49,7 @@ const App = () => (
             <Route path="/hearings" element={<Hearings />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/project/:id" element={<Projects />} />
+            <Route path="/sources" element={<Sources />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

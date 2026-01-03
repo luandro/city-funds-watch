@@ -67,6 +67,12 @@ class SourceRegistryService {
   private readonly STALE_DATA_MAX_AGE = 1000 * 60 * 60 * 24; // 24 hours
 
   /**
+   * Web Worker timeout in milliseconds
+   * Prevents indefinite hangs if worker fails to respond
+   */
+  private readonly WORKER_TIMEOUT = 30000; // 30 seconds
+
+  /**
    * Retry configuration
    */
   private readonly RETRY_CONFIG = {
@@ -506,15 +512,55 @@ class SourceRegistryService {
   /**
    * Parse registry data using a Web Worker to avoid blocking the main thread
    * Falls back to main-thread parsing if Worker fails or is not available
+   * Includes timeout mechanism to prevent indefinite hangs
    */
   private async parseWithWorker(raw: unknown): Promise<SourceRegistry> {
     return new Promise((resolve, reject) => {
+      let worker: Worker | null = null;
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+      let settled = false; // Prevent double-settlement
+
+      /**
+       * Cleanup function to ensure worker termination and timeout clearing
+       * Must be called before any resolve/reject
+       */
+      const cleanup = () => {
+        if (timeoutHandle !== null) {
+          clearTimeout(timeoutHandle);
+          timeoutHandle = null;
+        }
+        if (worker) {
+          worker.terminate();
+          worker = null;
+        }
+      };
+
+      /**
+       * Settlement helper with double-settlement prevention
+       * Ensures cleanup and callback happen atomically
+       */
+      const settle = (callback: () => void) => {
+        if (settled) return; // Already settled, ignore
+        settled = true;
+        cleanup();
+        callback();
+      };
+
       try {
-        // Create worker using Vite's worker import syntax
-        const worker = new Worker(
+        worker = new Worker(
           new URL('./registry.worker.ts', import.meta.url),
           { type: 'module' }
         );
+
+        // Set up timeout (environment-agnostic, no window dependency)
+        timeoutHandle = setTimeout(() => {
+          logger.error("Web Worker timeout, terminating", {
+            timeout: this.WORKER_TIMEOUT,
+          });
+          settle(() => {
+            reject(new Error(`Web Worker parsing timeout after ${this.WORKER_TIMEOUT}ms`));
+          });
+        }, this.WORKER_TIMEOUT);
 
         // Set up message handler
         worker.onmessage = (event: MessageEvent) => {
@@ -522,38 +568,42 @@ class SourceRegistryService {
 
           if (type === 'success') {
             logger.debug("Registry parsed successfully in Web Worker");
-            worker.terminate();
-            resolve(registry as SourceRegistry);
+            settle(() => {
+              resolve(registry as SourceRegistry);
+            });
           } else if (type === 'error') {
             logger.error("Web Worker parsing failed", new Error(error));
-            worker.terminate();
-            reject(new Error(error));
+            settle(() => {
+              reject(new Error(error));
+            });
           }
         };
 
         // Set up error handler
         worker.onerror = (err) => {
           logger.error("Web Worker error", err);
-          worker.terminate();
-          reject(new Error(`Web Worker error: ${err.message}`));
+          settle(() => {
+            reject(new Error(`Web Worker error: ${err.message}`));
+          });
         };
 
         // Send data to worker for parsing
         worker.postMessage({ type: 'parse', data: raw });
       } catch (err) {
-        // If Worker creation fails, fall back to main-thread parsing
-        logger.warn("Failed to create Web Worker, falling back to main-thread parsing", err);
+        settle(() => {
+          // If Worker creation fails, fall back to main-thread parsing
+          logger.warn("Failed to create Web Worker, falling back to main-thread parsing", err);
 
-        // Fallback: dynamically import parser and parse on main thread
-        import("./sourceRegistryParser").then(({ parseSourceRegistry }) => {
-          try {
-            const registry = parseSourceRegistry(raw);
-            resolve(registry);
-          } catch (parseErr) {
-            reject(parseErr);
-          }
-        }).catch((importErr) => {
-          reject(importErr);
+          import("./sourceRegistryParser").then(({ parseSourceRegistry }) => {
+            try {
+              const registry = parseSourceRegistry(raw);
+              resolve(registry);
+            } catch (parseErr) {
+              reject(parseErr);
+            }
+          }).catch((importErr) => {
+            reject(importErr);
+          });
         });
       }
     });

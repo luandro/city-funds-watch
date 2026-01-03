@@ -33,6 +33,8 @@ export const VALIDATION_LIMITS = {
   MAX_ARRAY_VALIDATION_ITEMS: 1000,
   MAX_OBJECT_DEPTH: 10,
   MAX_URL_LENGTH: 2048,
+  MAX_LINKS_PER_SECTION: 5000, // Stop after this many links per section
+  MAX_NODES_VISITED: 10000,     // Stop after this many nodes total
 } as const;
 
 // ============================================================
@@ -122,6 +124,10 @@ function isValidArray(value: unknown): value is unknown[] {
 /**
  * Validate array with element validator
  * SECURITY: Validates both array type and element safety
+ *
+ * For performance, thoroughly validates first MAX_ARRAY_VALIDATION_ITEMS.
+ * For large arrays, applies safety validation (type checks + dangerous pattern checks)
+ * to remaining items to prevent security bypass while maintaining performance.
  */
 function isValidArrayOf<T>(
   value: unknown,
@@ -130,7 +136,8 @@ function isValidArrayOf<T>(
   if (!Array.isArray(value)) {
     return false;
   }
-  // Validate all elements (limit check for performance on large arrays)
+
+  // Thoroughly validate first N items
   const maxItemsToCheck = VALIDATION_LIMITS.MAX_ARRAY_VALIDATION_ITEMS;
   const itemsToCheck = Math.min(value.length, maxItemsToCheck);
 
@@ -140,17 +147,37 @@ function isValidArrayOf<T>(
     }
   }
 
-  // For large arrays, just validate the rest are safe types
+  // For large arrays, apply safety validation to remaining items
+  // SECURITY FIX: Don't skip validation entirely - check for dangerous patterns
   if (value.length > maxItemsToCheck) {
+    logger.debug("Large array detected, applying safety validation to remaining items", {
+      totalItems: value.length,
+      thoroughlyValidated: itemsToCheck,
+    });
+
     for (let i = maxItemsToCheck; i < value.length; i++) {
       const item = value[i];
-      // Only allow primitives and plain objects for large arrays
+
+      // Type safety: only allow primitives and plain objects
       if (item !== null &&
           typeof item !== "string" &&
           typeof item !== "number" &&
           typeof item !== "boolean" &&
           typeof item !== "object") {
         return false;
+      }
+
+      // SECURITY FIX: If string, validate for dangerous patterns (XSS, injection)
+      // This prevents malicious payloads from bypassing validation in large arrays
+      if (typeof item === "string" && !isValidString(item)) {
+        return false;
+      }
+
+      // SECURITY FIX: If object, validate structure (prevent prototype pollution)
+      if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+        if (!isValidObject(item, VALIDATION_LIMITS.MAX_OBJECT_DEPTH)) {
+          return false;
+        }
       }
     }
   }
@@ -589,10 +616,11 @@ function parseSection(
   const title = isValidString(raw.titulo) ? raw.titulo : config.defaultTitle;
   const description = isValidString(raw.descricao) ? raw.descricao : config.defaultDescription;
 
-  // Recursively find all links in this section
-  // We skip the top-level 'titulo' and 'descricao' to avoid creating self-links from metadata
+  // Recursively find all links in this section with performance limits
   const defaultKind = mapSectionLetterToLinkKind(letter);
-  const links = findAllLinks(raw, key, defaultKind);
+  const state = new TraversalState();
+  const visited = new WeakSet<object>();
+  const links = findAllLinks(raw, key, defaultKind, visited, state);
 
   // SECURITY: Validate notes before including
   const notes = isValidString(raw.nota) ? [raw.nota] : undefined;
@@ -609,47 +637,115 @@ function parseSection(
 }
 
 /**
+ * Traversal state tracker to prevent performance issues
+ * Limits the number of links and nodes visited during recursive traversal
+ */
+class TraversalState {
+  private linksFound = 0;
+  private nodesVisited = 0;
+
+  /**
+   * Check if we can visit another node (without incrementing)
+   * @returns true if within limits, false if MAX_NODES_VISITED exceeded
+   */
+  canVisitNode(): boolean {
+    return this.nodesVisited < VALIDATION_LIMITS.MAX_NODES_VISITED;
+  }
+
+  /**
+   * Check if we can add another link (without incrementing)
+   * @returns true if within limits, false if MAX_LINKS_PER_SECTION exceeded
+   */
+  canAddLink(): boolean {
+    return this.linksFound < VALIDATION_LIMITS.MAX_LINKS_PER_SECTION;
+  }
+
+  /**
+   * Record that we visited a node
+   */
+  recordNodeVisit(): void {
+    this.nodesVisited++;
+  }
+
+  /**
+   * Record that we added a link
+   */
+  recordLinkAdded(): void {
+    this.linksFound++;
+  }
+
+  /**
+   * Get current traversal statistics
+   */
+  getStats() {
+    return {
+      linksFound: this.linksFound,
+      nodesVisited: this.nodesVisited,
+    };
+  }
+}
+
+/**
  * Recursively find all links in a raw object/array
  *
  * PERFORMANCE NOTES:
- * - Current implementation safe for registries <1MB (~500KB typical)
- * - Has cycle protection (WeakSet) and depth limits (MAX_OBJECT_DEPTH)
- * - No breadth limits on large arrays
+ * - Cycle protection via WeakSet to prevent infinite loops
+ * - Depth limits via MAX_OBJECT_DEPTH
+ * - Breadth limits via MAX_LINKS_PER_SECTION and MAX_NODES_VISITED
+ * - Safe for registries up to ~5MB with typical link density
  *
- * TODO: For large municipalities (>5MB registries):
- * - Add MAX_LINKS_PER_SECTION and MAX_NODES_VISITED limits
+ * For very large municipalities (>5MB registries):
  * - Consider Web Worker for CPU-intensive extraction
  * - Add progress reporting for UI feedback
- * - Profile performance with large datasets
+ * - Profile performance with real-world datasets
  */
 function findAllLinks(
   node: unknown,
   parentId: string,
   defaultKind: LinkKind,
-  visited = new WeakSet<object>()
+  visited: WeakSet<object>,
+  state: TraversalState
 ): RegistryLink[] {
   const links: RegistryLink[] = [];
 
   if (!node || typeof node !== "object") return links;
-  
+
   // Prevent infinite loops in circular structures
   if (visited.has(node)) return links;
   visited.add(node);
 
+  // Check and record node visit
+  if (!state.canVisitNode()) {
+    logger.warn("Node visit limit exceeded, stopping traversal", {
+      parentId,
+      ...state.getStats(),
+      limit: VALIDATION_LIMITS.MAX_NODES_VISITED,
+    });
+    return links;
+  }
+  state.recordNodeVisit();
+
   // Check if current node is a link itself
-  // We skip the root section object usually, but if it has a direct URL, we take it
   const link = createLinkFromNode(node as Record<string, unknown>, parentId, defaultKind);
   if (link) {
+    // Check link limit BEFORE adding
+    if (!state.canAddLink()) {
+      logger.warn("Link limit exceeded for section, stopping traversal", {
+        parentId,
+        ...state.getStats(),
+        limit: VALIDATION_LIMITS.MAX_LINKS_PER_SECTION,
+      });
+      return links;
+    }
+    // Record and add the link
+    state.recordLinkAdded();
     links.push(link);
-    // If it's a link, we might still want to traverse its children (e.g. if it has nested relevant data)
-    // But usually a "document" node is a leaf in terms of content. 
-    // However, some nodes like "sistema_emendas" might have a url AND children.
   }
 
   // Recurse into children
   if (Array.isArray(node)) {
     node.forEach((item, index) => {
-      links.push(...findAllLinks(item, `${parentId}-${index}`, defaultKind, visited));
+      links.push(...findAllLinks(item, `${parentId}-${index}`, defaultKind, visited, state));
     });
   } else {
     for (const [key, value] of Object.entries(node)) {
@@ -658,9 +754,9 @@ function findAllLinks(
 
       // Construct a better ID for the child
       const childId = `${parentId}.${key}`;
-      
+
       // Pass the key as context for title inference if needed
-      links.push(...findAllLinks(value, childId, defaultKind, visited));
+      links.push(...findAllLinks(value, childId, defaultKind, visited, state));
     }
   }
 

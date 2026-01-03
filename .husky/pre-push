@@ -19,7 +19,7 @@ files=$(get_changed_files)
 if [ -n "$files" ]; then
   for file in $files; do
     case "$file" in
-      *.md|docs/*|README*|.github/*) ;;
+      *.md|README*|.github/*) ;;
       *) docs_only=false; break ;;
     esac
   done

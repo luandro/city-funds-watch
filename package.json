@@ -14,6 +14,7 @@
     "test:coverage": "vitest --coverage",
     "test:watch": "vitest",
     "test:run": "vitest run",
+    "benchmark": "vitest bench --reporter=verbose",
     "prepare": "husky",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",

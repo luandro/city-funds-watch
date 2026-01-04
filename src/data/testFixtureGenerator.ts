@@ -2,6 +2,9 @@
  * Test Fixture Generator for Performance Profiling
  *
  * Generates synthetic registries at various sizes for performance testing.
+ *
+ * NOTE: Fixtures are generated to approximate the requested target size.
+ * Exact sizes can vary due to JSON structure overhead.
  */
 
 import type { RawRegistry } from './sourceRegistryTypes';
@@ -10,14 +13,14 @@ import type { RawRegistry } from './sourceRegistryTypes';
  * Configuration for generating test fixtures
  */
 export interface FixtureConfig {
-  /** Target size in bytes */
-  targetSize: number;
   /** Number of sections to generate */
   sectionsCount?: number;
   /** Links per section */
   linksPerSection?: number;
   /** Depth of nested objects */
   nestingDepth?: number;
+  /** Target size (bytes) for the generated JSON */
+  targetSize?: number;
 }
 
 /**
@@ -28,16 +31,35 @@ export interface FixtureConfig {
  */
 export function generateTestFixture(config: FixtureConfig): RawRegistry {
   const {
-    targetSize,
     sectionsCount = 9,
     linksPerSection = 50,
     nestingDepth = 3,
+    targetSize,
   } = config;
 
-  // Calculate approximate size needed per link
-  const totalLinks = sectionsCount * linksPerSection;
-  const avgLinkSize = Math.floor(targetSize / totalLinks);
+  if (typeof targetSize === 'number' && targetSize > 0) {
+    return generateRegistryToTarget(
+      sectionsCount,
+      linksPerSection,
+      nestingDepth,
+      targetSize
+    );
+  }
 
+  // Fallback: generate a reasonable default size based on structure depth
+  const avgLinkSize = nestingDepth === 2 ? 30 : nestingDepth === 3 ? 40 : 20;
+  return generateRegistryWithSize(sectionsCount, linksPerSection, nestingDepth, avgLinkSize);
+}
+
+/**
+ * Internal helper to generate registry with specific avgLinkSize
+ */
+function generateRegistryWithSize(
+  sectionsCount: number,
+  linksPerSection: number,
+  nestingDepth: number,
+  avgLinkSize: number
+): RawRegistry {
   const registry: RawRegistry = {
     metadata: {
       municipio: 'Test Municipality',
@@ -85,6 +107,91 @@ export function generateTestFixture(config: FixtureConfig): RawRegistry {
   }
 
   return registry;
+}
+
+/**
+ * Generate registry approximating a target JSON byte size.
+ * Uses iterative refinement on avgLinkSize until size is within tolerance.
+ */
+function generateRegistryToTarget(
+  sectionsCount: number,
+  linksPerSection: number,
+  nestingDepth: number,
+  targetSize: number
+): RawRegistry {
+  let adjustedSections = Math.max(1, sectionsCount);
+  let adjustedLinks = Math.max(1, linksPerSection);
+
+  for (let i = 0; i < 6; i++) {
+    const baseline = estimateJsonSize(
+      generateRegistryWithSize(adjustedSections, adjustedLinks, nestingDepth, 0)
+    );
+
+    if (baseline <= targetSize || (adjustedSections === 1 && adjustedLinks === 1)) {
+      break;
+    }
+
+    const scale = targetSize / baseline;
+    const nextLinks = Math.max(1, Math.floor(adjustedLinks * scale));
+    const nextSections = Math.max(1, Math.floor(adjustedSections * scale));
+
+    if (nextLinks < adjustedLinks) {
+      adjustedLinks = nextLinks;
+      continue;
+    }
+
+    if (nextSections < adjustedSections) {
+      adjustedSections = nextSections;
+      continue;
+    }
+
+    if (adjustedLinks > 1) {
+      adjustedLinks -= 1;
+    } else if (adjustedSections > 1) {
+      adjustedSections -= 1;
+    } else {
+      break;
+    }
+  }
+
+  const totalLinks = Math.max(1, adjustedSections * adjustedLinks);
+  let avgLinkSize = Math.max(0, Math.floor(targetSize / totalLinks));
+  let best: RawRegistry | null = null;
+  let bestDiff = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < 8; i++) {
+    const candidate = generateRegistryWithSize(
+      adjustedSections,
+      adjustedLinks,
+      nestingDepth,
+      avgLinkSize
+    );
+    const actualSize = estimateJsonSize(candidate);
+    const diff = Math.abs(actualSize - targetSize);
+
+    if (diff < bestDiff) {
+      best = candidate;
+      bestDiff = diff;
+    }
+
+    if (diff / targetSize <= 0.1) {
+      return candidate;
+    }
+
+    if (actualSize === 0) {
+      avgLinkSize = Math.max(1, avgLinkSize * 2);
+      continue;
+    }
+
+    const scale = targetSize / actualSize;
+    avgLinkSize = Math.max(0, Math.round(avgLinkSize * scale));
+  }
+
+  return best ?? generateRegistryWithSize(sectionsCount, linksPerSection, nestingDepth, avgLinkSize);
+}
+
+function estimateJsonSize(registry: RawRegistry): number {
+  return new TextEncoder().encode(JSON.stringify(registry)).length;
 }
 
 /**
@@ -167,26 +274,34 @@ function generateNestedStructure(count: number, avgSize: number, depth: number):
 
 /**
  * Generate a title with padding to reach target size
+ *
+ * Note: padding is NOT capped to ensure fixtures reach target sizes.
+ * The avgLinkSize calculation already accounts for overhead (50 bytes).
  */
 function generateTitle(index: number, targetSize: number): string {
   const base = `Documento ${index}`;
   const paddingSize = Math.max(0, targetSize - base.length - 50);
 
-  return base + (paddingSize > 0 ? ' ' + 'X'.repeat(Math.min(paddingSize, 100)) : '');
+  // No cap on padding - use the full calculated size
+  return paddingSize > 0 ? base + ' ' + 'X'.repeat(paddingSize) : base;
 }
 
 /**
  * Generate a description with padding
+ *
+ * Note: padding is NOT capped to ensure fixtures reach target sizes.
+ * The avgLinkSize calculation already accounts for overhead (100 bytes).
  */
 function generateDescription(targetSize: number): string {
   const base = 'Descrição do documento com informações relevantes';
   const paddingSize = Math.max(0, targetSize - base.length - 100);
 
-  return base + (paddingSize > 0 ? ' ' + 'Y'.repeat(Math.min(paddingSize, 200)) : '');
+  // No cap on padding - use the full calculated size
+  return paddingSize > 0 ? base + ' ' + 'Y'.repeat(paddingSize) : base;
 }
 
 /**
- * Generate fixtures at standard test sizes
+ * Fixture target sizes (approximate - actual sizes may vary slightly)
  */
 export const FIXTURE_SIZES = {
   tiny: 50_000,      // 50 KB

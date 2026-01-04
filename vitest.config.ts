@@ -8,6 +8,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    benchmark: {
+      // Include only benchmark files when running benchmarks
+      include: ['**/*.bench.ts'],
+      // Use more samples for accurate benchmarking
+      samples: 20,
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -16,6 +22,7 @@ export default defineConfig({
         'src/test/',
         '**/*.test.ts',
         '**/*.test.tsx',
+        '**/*.bench.ts',
         'src/main.tsx',
         'vite.config.ts',
         'vitest.config.ts',

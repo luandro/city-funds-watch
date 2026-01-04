@@ -7,6 +7,9 @@
  * Run with: npm run benchmark
  *
  * Issue: #17 - Profile parser performance with large registries (>1MB)
+ *
+ * Note: Fixtures are generated ONCE outside bench() calls to isolate parsing performance
+ * and eliminate fixture generation overhead from benchmark results.
  */
 
 import { bench, describe } from 'vitest';
@@ -17,33 +20,37 @@ import {
 } from './testFixtureGenerator';
 
 describe('Parser Performance Benchmarks', () => {
+  // Generate all fixtures ONCE outside benchmarks to eliminate generation overhead
+  const fixtures = {
+    tiny: generateFixtureAtSize(FIXTURE_SIZES.tiny),
+    small: generateFixtureAtSize(FIXTURE_SIZES.small),
+    medium: generateFixtureAtSize(FIXTURE_SIZES.medium),
+    large: generateFixtureAtSize(FIXTURE_SIZES.large),
+    xlarge: generateFixtureAtSize(FIXTURE_SIZES.xlarge),
+    huge: generateFixtureAtSize(FIXTURE_SIZES.huge),
+  };
+
   bench('parse tiny registry (50KB)', () => {
-    const registry = generateFixtureAtSize(FIXTURE_SIZES.tiny);
-    parseSourceRegistry(registry);
+    parseSourceRegistry(fixtures.tiny);
   });
 
   bench('parse small registry (500KB - current BH size)', () => {
-    const registry = generateFixtureAtSize(FIXTURE_SIZES.small);
-    parseSourceRegistry(registry);
+    parseSourceRegistry(fixtures.small);
   });
 
   bench('parse medium registry (1MB)', () => {
-    const registry = generateFixtureAtSize(FIXTURE_SIZES.medium);
-    parseSourceRegistry(registry);
+    parseSourceRegistry(fixtures.medium);
   });
 
   bench('parse large registry (2MB)', () => {
-    const registry = generateFixtureAtSize(FIXTURE_SIZES.large);
-    parseSourceRegistry(registry);
+    parseSourceRegistry(fixtures.large);
   });
 
   bench('parse very large registry (5MB)', () => {
-    const registry = generateFixtureAtSize(FIXTURE_SIZES.xlarge);
-    parseSourceRegistry(registry);
+    parseSourceRegistry(fixtures.xlarge);
   });
 
   bench('parse huge registry (10MB - stress test)', () => {
-    const registry = generateFixtureAtSize(FIXTURE_SIZES.huge);
-    parseSourceRegistry(registry);
+    parseSourceRegistry(fixtures.huge);
   });
 });

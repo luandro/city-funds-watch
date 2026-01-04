@@ -191,7 +191,12 @@ function generateRegistryToTarget(
 }
 
 function estimateJsonSize(registry: RawRegistry): number {
-  return new TextEncoder().encode(JSON.stringify(registry)).length;
+  try {
+    return new TextEncoder().encode(JSON.stringify(registry)).length;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to estimate JSON size: ${errorMessage}. Registry may contain circular references or non-serializable values.`);
+  }
 }
 
 /**
@@ -273,30 +278,36 @@ function generateNestedStructure(count: number, avgSize: number, depth: number):
 }
 
 /**
- * Generate a title with padding to reach target size
+ * Generate a title with controlled padding
  *
- * Note: padding is NOT capped to ensure fixtures reach target sizes.
- * The avgLinkSize calculation already accounts for overhead (50 bytes).
+ * Caps padding to prevent exponential size growth when avgSize is used for
+ * multiple fields. The avgLinkSize is distributed across title, description,
+ * and nested structures.
  */
 function generateTitle(index: number, targetSize: number): string {
   const base = `Documento ${index}`;
-  const paddingSize = Math.max(0, targetSize - base.length - 50);
+  // Cap padding at 500 chars to prevent 5-10x size inflation
+  const maxPadding = 500;
+  const requestedPadding = Math.max(0, targetSize - base.length);
+  const paddingSize = Math.min(maxPadding, requestedPadding);
 
-  // No cap on padding - use the full calculated size
   return paddingSize > 0 ? base + ' ' + 'X'.repeat(paddingSize) : base;
 }
 
 /**
- * Generate a description with padding
+ * Generate a description with controlled padding
  *
- * Note: padding is NOT capped to ensure fixtures reach target sizes.
- * The avgLinkSize calculation already accounts for overhead (100 bytes).
+ * Caps padding to prevent exponential size growth when avgSize is used for
+ * multiple fields. The avgLinkSize is distributed across title, description,
+ * and nested structures.
  */
 function generateDescription(targetSize: number): string {
   const base = 'Descrição do documento com informações relevantes';
-  const paddingSize = Math.max(0, targetSize - base.length - 100);
+  // Cap padding at 1000 chars to prevent 5-10x size inflation
+  const maxPadding = 1000;
+  const requestedPadding = Math.max(0, targetSize - base.length);
+  const paddingSize = Math.min(maxPadding, requestedPadding);
 
-  // No cap on padding - use the full calculated size
   return paddingSize > 0 ? base + ' ' + 'Y'.repeat(paddingSize) : base;
 }
 

@@ -31,7 +31,7 @@
 ## Git Hooks & CI Checks
 - Pre-commit hooks are managed by Husky (`.husky/pre-commit`). Run `npm install` to install hooks via the `prepare` script.
 - Pre-commit runs staged-file linting plus a full TypeScript typecheck to keep commits clean.
-- Pre-push runs `npm run ci`, but skips the build step for docs-only changes: markdown files (`*.md`), README files (`README*`), and GitHub workflow/config files (`.github/*`). Note: Only markdown files are treated as docs-only, not all files in a `docs/` directory.
+- Pre-push hook is currently disabled (skips all checks) to accommodate git workflows without upstream branches. Developers should manually run `npm run ci` before pushing to ensure code quality.
 - GitHub Actions runs lint and typecheck as separate jobs before the build; deploys to Pages only on `main`.
 
 ## Commit & Pull Request Guidelines
